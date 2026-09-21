@@ -9,10 +9,22 @@ to be cloned onto another phone and work with two scripts.
 
 ## Quick start
 
-Requirements: Termux (or any Linux with `python3`), `llama.cpp` (`llama-cli`)
-on PATH for GPU/version detection. No pip packages needed — stdlib only.
+### Requirements
+
+| Need              | Details                                                        | Required? |
+|-------------------|----------------------------------------------------------------|-----------|
+| Android + Termux (or any Linux) | Primary target is a phone; works on tablet/desktop Linux too | Yes |
+| Python 3.8+       | Stdlib only — zero pip packages to install                    | Yes |
+| `git`             | To clone the repo (`pkg install git` on Termux)                | Yes |
+| A browser         | Any modern mobile or desktop browser for the dashboard         | Yes |
+| `llama-cli` (llama.cpp, Vulkan build) | GPU detection, version detection, benchmarks | Recommended — without it the dashboard still runs but shows GPU/model as unavailable |
+| Free RAM ~2 GB+   | For running small local models; the dashboard itself needs almost nothing | For models only |
+| Disk space        | ~5 MB for the repo; +1–4 GB free if you download a `.gguf` model | Model space as needed |
+
+### Install & run
 
 ```bash
+pkg install python git   # Termux only, once
 git clone <your-repo-url> ai-lab
 cd ai-lab
 ./run-dashboard.sh

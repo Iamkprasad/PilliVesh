@@ -1,0 +1,26 @@
+# Local runtime data (regenerated on device, never committed)
+runtime/**/*.db
+logs/*.jsonl
+results/*.json
+results/*.jsonl
+models/*
+!models/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+*~
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Local AI — Control Center</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-title">LOCAL AI</div>
+    <div class="brand-sub">CONTROL CENTER</div>
+  </div>
+  <div class="livebox">
+    <div id="statusLine" class="status"><span class="dot unknown"></span><span id="statusText">Checking…</span></div>
+    <div id="updateLine" class="updated">—</div>
+  </div>
+</header>
+
+<main id="main">
+  <!-- HOME -->
+  <section id="view-home" class="view active">
+    <div class="panel">
+      <div class="panel-h">HARDWARE</div>
+      <div id="hwGrid" class="kv-grid"></div>
+      <div class="bar-row"><div class="bar-label"><span>RAM</span><span id="ramText"></span></div><div class="bar"><div id="ramBar" class="bar-fill"></div></div></div>
+      <div class="bar-row"><div class="bar-label"><span>SWAP</span><span id="swapText"></span></div><div class="bar"><div id="swapBar" class="bar-fill alt"></div></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h">THERMALS</div>
+      <div id="thermGrid" class="kv-grid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h">RUNTIME</div>
+      <div id="runtimeGrid" class="kv-grid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h">MODEL BENCHMARK</div>
+      <div id="benchBox"></div>
+      <div id="benchChart"></div>
+    </div>
+  </section>
+
+  <!-- RUNTIME -->
+  <section id="view-runtime" class="view">
+    <div class="panel"><div class="panel-h">RUNTIME STATUS</div><div id="runtimeFull" class="kv-grid"></div></div>
+    <div class="panel"><div class="panel-h">GPU / VULKAN</div><div id="gpuBox" class="mono small"></div></div>
+    <div class="panel"><div class="panel-h">DIAGNOSTICS</div><div id="diagBox" class="kv-grid"></div></div>
+  </section>
+
+  <!-- MEMORY -->
+  <section id="view-memory" class="view">
+    <div class="panel">
+      <div class="panel-h">MEMORY</div>
+      <div id="memCounts" class="chips"></div>
+      <input id="memSearch" class="input" type="search" placeholder="Search memory…" autocomplete="off">
+      <div id="memList" class="list"></div>
+    </div>
+  </section>
+
+  <!-- LOGS -->
+  <section id="view-logs" class="view">
+    <div class="panel">
+      <div class="panel-h">RUNTIME LOGS</div>
+      <div id="logFilters" class="chips">
+        <button data-f="all" class="chip on">All</button>
+        <button data-f="info" class="chip">Info</button>
+        <button data-f="warning" class="chip">Warning</button>
+        <button data-f="error" class="chip">Error</button>
+        <button data-f="tool" class="chip">Tool</button>
+        <button data-f="model" class="chip">Model</button>
+        <button data-f="system" class="chip">System</button>
+      </div>
+      <div id="logList" class="list"></div>
+    </div>
+  </section>
+
+  <!-- MORE -->
+  <section id="view-more" class="view">
+    <div class="panel"><div class="panel-h">MORE</div>
+      <div class="menu">
+        <button data-goto="skills">Skills</button>
+        <button data-goto="tools">Tools</button>
+        <button data-goto="tasks">Tasks</button>
+        <button data-goto="diagnostics">Diagnostics</button>
+        <button data-goto="settings">Settings</button>
+      </div>
+    </div>
+    <div class="panel" id="more-skills"><div class="panel-h">SKILLS</div><div id="skillsBox" class="list"></div></div>
+    <div class="panel" id="more-tools"><div class="panel-h">TOOLS</div><div id="toolsBox" class="list"></div></div>
+    <div class="panel" id="more-tasks"><div class="panel-h">TASKS</div><div id="tasksBox" class="list"></div></div>
+    <div class="panel" id="more-diag"><div class="panel-h">DIAGNOSTICS</div><div id="diagBox2" class="kv-grid"></div></div>
+    <div class="panel" id="more-settings"><div class="panel-h">SETTINGS</div><div id="settingsBox" class="kv-grid">
+      <div class="kv"><span class="k">API host</span><span class="v">127.0.0.1 (localhost only)</span></div>
+      <div class="kv"><span class="k">API port</span><span class="v">8080</span></div>
+      <div class="kv"><span class="k">Refresh</span><span class="v">5 s</span></div>
+      <div class="kv"><span class="k">Mode</span><span class="v">Read-only</span></div>
+    </div></div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <button data-view="home" class="tab on">Home</button>
+  <button data-view="runtime" class="tab">Runtime</button>
+  <button data-view="memory" class="tab">Memory</button>
+  <button data-view="logs" class="tab">Logs</button>
+  <button data-view="more" class="tab">More</button>
+</nav>
+
+<script src="js/utils.js"></script>
+<script src="js/api.js"></script>
+<script src="js/state.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

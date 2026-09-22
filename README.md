@@ -76,9 +76,13 @@ The dashboard talks to a tiny stdlib HTTP server (`runtime/server/`):
 | `/api/tools`        | tool registry (`runtime/tools/`)        |
 | `/api/tasks`        | `runtime/state/state.db`                |
 | `/api/diagnostics`  | profile, `models/`, file presence       |
+| `/api/models`       | catalog + installed + download status   |
+| `/api/health`       | liveness probe                          |
 
-There is deliberately no remote control, no auth, and no shell-execution
-endpoint. It binds to `127.0.0.1` only.
+Write endpoints (POST, still localhost-only): `/api/models/download`
+(starts an allow-listed model download) and `/api/server/stop` (shuts the
+server down). There is deliberately no remote control, no auth, and no
+shell-execution endpoint. It binds to `127.0.0.1` only.
 
 ## Handy runtime commands
 

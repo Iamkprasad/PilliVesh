@@ -115,6 +115,23 @@ async function exportReport(){
     a.download="pillivesh-diagnostics.txt";a.click();
   }
 }
+async function freeRam(){
+  var btn=document.getElementById("freeRamBtn"),out=document.getElementById("freeRamResult");
+  if(!confirm("Run best-effort RAM cleanup? (flush pages, release model cache, kill stale inferencers, ask Android to clear background processes)"))return;
+  btn.disabled=true;btn.textContent="Cleaning…";out.textContent="";
+  var r=await API.freeRam();
+  btn.disabled=false;btn.textContent="Free up RAM";
+  if(!r.success){out.innerHTML="<span style='color:var(--err)'>Cleanup failed: "+esc(r.error)+"</span>";return}
+  var d=r.data||{},acts=d.actions||[];
+  var freed=d.freed_mb;
+  var head=freed==null?"Cleanup finished (memory delta unavailable)":
+    (freed>=0?"Freed ~"+freed+" MB available RAM":"Available RAM changed by "+freed+" MB (kernel may reclaim slowly)");
+  var lines=acts.map(function(a){
+    return (a.ok?"✓ ":"✗ ")+esc(a.name)+(a.detail?(" — "+esc(a.detail)):"");
+  }).join("<br>");
+  out.innerHTML="<b>"+esc(head)+"</b><br>"+lines;
+  refreshHome();
+}
 function show(v){
   currentView=v;
   document.querySelectorAll(".view").forEach(function(s){s.classList.remove("active")});
@@ -136,6 +153,7 @@ document.querySelectorAll("#logFilters .chip").forEach(function(b){b.onclick=fun
 document.getElementById("memSearch").addEventListener("input",function(e){
   clearTimeout(memTimer);memTimer=setTimeout(function(){refreshMemory(e.target.value)},350)});
 document.getElementById("exportBtn").onclick=function(){exportReport()};
+document.getElementById("freeRamBtn").onclick=function(){freeRam()};
 var refreshTimer=setInterval(function(){if(currentView==="home"||currentView==="runtime")refreshHome()},5000);
 document.getElementById("stopBtn").onclick=function(){
   if(!confirm("Stop the PilliVesh server and close the port?"))return;

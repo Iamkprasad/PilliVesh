@@ -75,6 +75,11 @@ class Handler(BaseHTTPRequestHandler):
                 server.shutdown()
             threading.Thread(target=_stop, daemon=True).start()
             return self._send_json(ok({"stopping": True}))
+        if route == "/api/memory/free":
+            try:
+                return self._send_json(ok(handlers.free_ram()))
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
         if route != "/api/models/download":
             return self._send_json(fail("Not found"), 404)
         try:

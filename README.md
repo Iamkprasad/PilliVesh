@@ -56,6 +56,11 @@ Stop it with `Ctrl+C`, or from another shell:
   "Add to Home screen" to install PilliVesh like a native app.
 - **Export diagnostics** — one tap in Diagnostics copies (or downloads) a
   plain-text report of CPU/RAM/GPU/model state for sharing or debugging.
+- **Free up RAM** — Home button runs a fixed cleanup: flush dirty pages,
+  release page cache on large `.gguf` files, reap zombies, kill stale
+  `llama-cli` leftovers, then best-effort `am kill-all` (background apps only).
+  Each step reports success/failure honestly — stock Android without root
+  cannot drop the global page cache.
 - **Live refresh** — telemetry re-polls every 5 seconds and updates in place;
   if a source disappears the UI shows an unavailable state instead of crashing.
 
@@ -80,9 +85,11 @@ The dashboard talks to a tiny stdlib HTTP server (`runtime/server/`):
 | `/api/health`       | liveness probe                          |
 
 Write endpoints (POST, still localhost-only): `/api/models/download`
-(starts an allow-listed model download) and `/api/server/stop` (shuts the
-server down). There is deliberately no remote control, no auth, and no
-shell-execution endpoint. It binds to `127.0.0.1` only.
+(starts an allow-listed model download), `/api/memory/free` (best-effort
+RAM cleanup — fixed internal steps only, no shell input), and
+`/api/server/stop` (shuts the server down). There is deliberately no
+remote control, no auth, and no general shell-execution endpoint. It binds
+to `127.0.0.1` only.
 
 ## Handy runtime commands
 

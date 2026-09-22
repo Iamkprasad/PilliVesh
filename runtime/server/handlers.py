@@ -258,6 +258,12 @@ def start_download(model_id):
     return download_async(model_id.strip())
 
 
+def free_ram():
+    """Best-effort RAM cleanup (fixed steps in resource_cleaner — no shell input)."""
+    from runtime.monitor.resource_cleaner import free_ram as _free
+    return _free()
+
+
 def get_diagnostics():
     import platform
     profile = get_profile()

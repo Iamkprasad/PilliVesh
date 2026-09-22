@@ -15,6 +15,12 @@ var API={
   tasks(){return this.get("/api/tasks")},
   diagnostics(){return this.get("/api/diagnostics")},
   models(){return this.get("/api/models")},
+  async freeRam(){
+    try{
+      var r=await fetch("/api/memory/free",{method:"POST"});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
+  },
   async downloadModel(id){
     try{
       var r=await fetch("/api/models/download",{method:"POST",

@@ -28,6 +28,22 @@ class SkillRouter:
             "analyze", "reason", "logic", "why",
             "evaluate", "deduce"
         ],
+        "termux-android": [
+            "termux", "android", "phone", "device",
+            "pkg", "install", "storage", "battery"
+        ],
+        "benchmarking": [
+            "benchmark", "tokens per second", "tok/s", "latency",
+            "throughput", "throttling", "compare models"
+        ],
+        "git-github": [
+            "git", "github", "commit", "push",
+            "branch", "pull request", "clone", "repo"
+        ],
+        "model-ops": [
+            "model", "gguf", "quant", "download model",
+            "context size", "offload", "out of memory", "inference"
+        ],
     }
 
     def select(self, task):
@@ -62,6 +78,9 @@ if __name__ == "__main__":
         "Check Termux CPU usage",
         "Research Vulkan performance",
         "Create a project roadmap",
+        "Download a GGUF model for this phone",
+        "Benchmark tokens per second",
+        "Commit and push the repo",
     ]
 
     for task in tests:

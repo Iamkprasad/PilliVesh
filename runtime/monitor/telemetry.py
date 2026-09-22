@@ -13,6 +13,8 @@ RESULTS.mkdir(exist_ok=True)
 LOGS.mkdir(exist_ok=True)
 
 TELEMETRY_FILE = RESULTS / "telemetry_latest.json"
+HISTORY_FILE = RESULTS / "telemetry_history.jsonl"
+HISTORY_KEEP = 500
 
 
 def command(cmd):
@@ -157,6 +159,30 @@ def save():
         json.dumps(data, indent=2),
         encoding="utf-8",
     )
+
+    # Compact history for inbuilt graphs (best-effort, trimmed).
+    try:
+        temps = data["system"].get("temperatures_c", {})
+        mem = data["system"].get("memory", {})
+        record = {
+            "timestamp": data["timestamp"],
+            "cpu": temps.get("cpuss-0-usr"),
+            "gpu": temps.get("gpuss-1-usr"),
+            "battery": temps.get("battery"),
+            "ram_used_mb": mem.get("used_mb"),
+            "ram_total_mb": mem.get("total_mb"),
+            "swap_used_mb": mem.get("swap_used_mb"),
+        }
+        with HISTORY_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+        lines = HISTORY_FILE.read_text(encoding="utf-8").splitlines()
+        if len(lines) > HISTORY_KEEP:
+            HISTORY_FILE.write_text(
+                "\n".join(lines[-HISTORY_KEEP:]) + "\n",
+                encoding="utf-8",
+            )
+    except Exception:
+        pass
 
     return data
 

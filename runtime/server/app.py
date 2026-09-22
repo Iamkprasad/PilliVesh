@@ -61,6 +61,40 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        route = parsed.path.rstrip("/") or "/"
+        if route == "/api/server/stop":
+            # Localhost-only exit button: respond first, then stop.
+            # shutdown() must run on a different thread than serve_forever.
+            import threading
+            import time as _time
+            server = self.server
+            def _stop():
+                _time.sleep(0.5)
+                server.shutdown()
+            threading.Thread(target=_stop, daemon=True).start()
+            return self._send_json(ok({"stopping": True}))
+        if route != "/api/models/download":
+            return self._send_json(fail("Not found"), 404)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except Exception:
+            length = 0
+        if length <= 0 or length > 1024:
+            return self._send_json(fail("Bad request"), 400)
+        try:
+            body = json.loads(self.rfile.read(length).decode("utf-8"))
+        except Exception:
+            return self._send_json(fail("Bad request"), 400)
+        try:
+            return self._send_json(ok(handlers.start_download(
+                body.get("id") if isinstance(body, dict) else None)))
+        except ValueError as e:
+            return self._send_json(fail(e), 200)
+        except Exception as e:
+            return self._send_json(fail(f"Internal error: {e}"), 500)
+
     def do_GET(self):
         parsed = urlparse(self.path)
         route = parsed.path.rstrip("/") or "/"
@@ -89,6 +123,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(ok(handlers.get_tasks()))
             if route == "/api/diagnostics":
                 return self._send_json(ok(handlers.get_diagnostics()))
+            if route == "/api/models":
+                return self._send_json(ok(handlers.get_models()))
             if route == "/api/health":
                 return self._send_json(ok({"status": "ok"}))
         except FileNotFoundError as e:

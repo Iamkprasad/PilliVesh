@@ -12,6 +12,41 @@ var Dashboard={
     return null;
   },
   kv:function(k,v){return '<div class="kv"><span class="k">'+esc(k)+'</span><span class="v">'+v+'</span></div>'},
+  formatMemory:function(content){
+    var text=String(content||"");
+    var parts=text.split(" | ");
+    function field(name){
+      for(var i=0;i<parts.length;i++){
+        if(parts[i].indexOf(name+":")===0)return parts[i].slice(name.length+1).trim();
+      }
+      return null;
+    }
+    var task=field("Task"),tool=field("Tool"),verified=field("Verified");
+    var payload=field("Facts"),label="Facts";
+    if(payload==null){payload=field("Result");label="Result";}
+    var out="";
+    if(task)out+="<div><b>Task:</b> "+esc(task)+"</div>";
+    if(tool)out+='<div class="meta"><span>Tool: '+esc(tool)+"</span>"+(verified?"<span>Verified: "+esc(verified)+"</span>":"")+"</div>";
+    if(payload){
+      if(payload.indexOf("'cpu_cores'")>=0){
+        var facts=[],m;
+        m=payload.match(/'cpu_cores':\s*(\d+)/);
+        if(m)facts.push("CPU cores: "+m[1]);
+        m=payload.match(/Mem:\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)/);
+        if(m)facts.push("RAM available: "+m[1]);
+        m=payload.match(/Swap:\s+(\S+)\s+\S+\s+(\S+)/);
+        if(m)facts.push("Swap total/free: "+m[1]+"/"+m[2]);
+        m=payload.match(/Vulkan0:\s*(.+)\(/);
+        if(m){var g=m[1].trim();facts.push("GPU: "+(g.indexOf("Adreno")>=0?"Adreno 650":g));facts.push("Backend: Vulkan");}
+        out+='<div class="meta"><span>'+esc(label)+"</span></div><div>"+facts.map(function(f){return esc(f)}).join("<br>")+"</div>";
+      }else if(payload.indexOf(";")>=0){
+        out+='<div class="meta"><span>'+esc(label)+"</span></div><div>"+payload.split(";").map(function(s){return esc(s.trim())}).join("<br>")+"</div>";
+      }else{
+        out+="<div>"+esc(label+": "+payload)+"</div>";
+      }
+    }
+    return out||esc(text);
+  },
   renderHome:function(t,b){
     var mem=(t.system&&t.system.memory)||{};
     var hw="";
@@ -34,6 +69,17 @@ var Dashboard={
       return Dashboard.kv(g[0],v==null?"—":v+"°C");
     }).join("");
     document.getElementById("thermGrid").innerHTML=th||Dashboard.kv("Thermals","Not available");
+    var hist=t.history||[];
+    function col(key,fn){return hist.map(function(h){var v=h[key];return v==null?null:fn(v)})}
+    Charts.multi(document.getElementById("thermChart"),[
+      {name:"CPU",color:"#d9a13b",values:col("cpu",function(v){return v})},
+      {name:"GPU",color:"#5b8fd4",values:col("gpu",function(v){return v})},
+      {name:"Batt",color:"#3fb27f",values:col("battery",function(v){return v})}
+    ],"°C");
+    Charts.multi(document.getElementById("ramChart"),[
+      {name:"Used",color:"#3fb27f",values:col("ram_used_mb",function(v){return +(v/1024).toFixed(2)})},
+      {name:"Total",color:"#8b949d",values:col("ram_total_mb",function(v){return +(v/1024).toFixed(2)})}
+    ]," GB");
 
     var rt=t.runtime||{},bm=t.benchmark||{};
     var ver=(rt.llama_version||"Not available");
@@ -71,8 +117,16 @@ var Dashboard={
       this.kv("Model",esc(rt.model_downloaded?"Installed":"Not installed"))+
       this.kv("CPU",esc(t.system&&t.system.cpu_cores!=null?t.system.cpu_cores+" cores":"—"))+
       this.kv("Updated",esc(fmtTime(t.timestamp)));
-    document.getElementById("gpuBox").textContent=((t.gpu&&t.gpu.raw)||"GPU info not available.")
-      +"\nNote: the MiB figure reported by llama.cpp is shared/unified memory, not dedicated VRAM.";
+    var raw=(t.gpu&&t.gpu.raw)||"";
+    var dev=(t.gpu&&t.gpu.device)||null;
+    var shared=null,dm=raw.match(/Vulkan0:\s*(.+)\((\d+)\s*MiB/);
+    if(dm){shared=dm[2]+" MiB";if(!dev)dev=dm[1].trim();}
+    document.getElementById("gpuBox").innerHTML=
+      this.kv("GPU",dev?esc(shortGpu(dev)):"Not installed")+
+      this.kv("Vulkan",(t.gpu&&t.gpu.vulkan_available)?"Available":"Not available")+
+      this.kv("Shared memory",shared||"—")+
+      '<div class="small">Note: the MiB figure reported by llama.cpp is shared/unified memory, not dedicated VRAM.</div>'+
+      '<details class="tech"><summary>Technical details</summary><div class="mono small">'+esc(raw||"GPU info not available.")+'</div></details>';
     var sb=document.getElementById("settingsBox");
     if(sb){sb.innerHTML=
       this.kv("API host","127.0.0.1 (localhost only)")+
@@ -82,7 +136,7 @@ var Dashboard={
     if(diag){
       document.getElementById("diagBox").innerHTML=
         this.kv("Python",esc(diag.python||"—"))+
-        this.kv("Models",diag.models&&diag.models.length?esc(diag.models.map(function(m){return m.name}).join(", ")):"None")+
+        this.kv("Models",diag.models&&diag.models.length?esc(diag.models.map(function(m){return m.name}).join(", ")):"0 installed")+
         this.kv("profile.json",diag.files?"✓":"—");
       document.getElementById("diagBox2").innerHTML=document.getElementById("diagBox").innerHTML;
     }

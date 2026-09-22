@@ -35,6 +35,20 @@ def get_telemetry():
     data = _load_json(RESULTS / "telemetry_latest.json", default=None)
     if not data:
         raise FileNotFoundError("Telemetry unavailable")
+    # Attach compact history for inbuilt graphs (best-effort).
+    history = []
+    try:
+        hist_path = RESULTS / "telemetry_history.jsonl"
+        if hist_path.exists():
+            lines = hist_path.read_text(encoding="utf-8").splitlines()
+            for line in lines[-60:]:
+                line = line.strip()
+                if line:
+                    history.append(json.loads(line))
+    except Exception:
+        history = []
+    data = dict(data)
+    data["history"] = history
     return data
 
 
@@ -226,19 +240,30 @@ def get_tasks():
     }
 
 
+def get_models():
+    from runtime.model.catalog import list_models
+    from runtime.model.downloader import installed, status
+    catalog = list_models()
+    have = {m["name"] for m in installed()}
+    for entry in catalog:
+        entry["installed"] = entry["filename"] in have
+    return {"catalog": catalog, "installed": installed(),
+            "download": status()}
+
+
+def start_download(model_id):
+    from runtime.model.downloader import download_async
+    if not model_id or not isinstance(model_id, str):
+        raise ValueError("Missing model id")
+    return download_async(model_id.strip())
+
+
 def get_diagnostics():
     import platform
     profile = get_profile()
-    models = []
     try:
-        if MODELS_DIR.exists():
-            for p in sorted(MODELS_DIR.iterdir()):
-                if p.is_file():
-                    try:
-                        size = p.stat().st_size
-                    except Exception:
-                        size = None
-                    models.append({"name": p.name, "size_bytes": size})
+        from runtime.model.downloader import installed as _installed
+        models = _installed()
     except Exception:
         models = []
     files = {}

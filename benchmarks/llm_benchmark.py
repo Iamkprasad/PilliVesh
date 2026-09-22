@@ -135,7 +135,9 @@ def benchmark(model_path=None):
 
 
 if __name__ == "__main__":
-    result = benchmark()
+    import sys
+    model = sys.argv[1] if len(sys.argv) > 1 else None
+    result = benchmark(model)
 
     print("=== LLM BENCHMARK ===")
     print(f"Status: {result['status']}")

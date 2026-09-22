@@ -47,7 +47,15 @@ Stop it with `Ctrl+C`, or from another shell:
   (procedural / semantic / episodic / project).
 - **Logs** — recent runtime events with type filters; click a row for details.
 - **More** — skills (reads each skill's `SKILL.md`), registered tools, project
-  tasks, diagnostics, and server settings.
+  tasks, model downloads, diagnostics, and server settings.
+- **Inbuilt graphs** — dependency-free SVG charts (no chart library): CPU/GPU/
+  battery thermals and RAM history on Home, benchmark history once a model
+  runs. History accumulates in `results/telemetry_history.jsonl` and
+  `results/benchmark_history.jsonl` automatically.
+- **PWA-ready** — `manifest.json` + icon included; use your browser's
+  "Add to Home screen" to install PilliVesh like a native app.
+- **Export diagnostics** — one tap in Diagnostics copies (or downloads) a
+  plain-text report of CPU/RAM/GPU/model state for sharing or debugging.
 - **Live refresh** — telemetry re-polls every 5 seconds and updates in place;
   if a source disappears the UI shows an unavailable state instead of crashing.
 
@@ -85,6 +93,34 @@ python3 -m runtime.orchestrator           # run the runtime once (system_info de
 
 Drop a `.gguf` model into `models/` and the runtime, benchmark, and dashboard
 pick it up automatically (`model_downloaded` is detected, not configured).
+
+### Models (curated, phone-sized)
+
+No hunting for download links — PilliVesh ships an allow-listed catalog
+(`runtime/model/catalog.py`, all entries verified upstream). Install from the
+dashboard's More → Models screen, or from the shell:
+
+```bash
+python3 -m runtime.model.downloader smollm2-360m-q8   # ~386 MB, smallest first
+python3 -m runtime.model.downloader --status          # progress / state
+```
+
+| Model | Quant | Size | Needs free RAM |
+|---|---|---|---|
+| SmolLM2 360M | Q8_0 | ~386 MB | ~1.0 GB |
+| Qwen2.5 0.5B | Q4_K_M | ~400 MB | ~1.2 GB |
+| Llama 3.2 1B | Q4_K_M | ~800 MB | ~1.8 GB |
+
+Downloads stream to `models/*.part`, are size-verified, then moved into place;
+only catalog ids are accepted (arbitrary URLs are refused). After a download
+the runtime profile refreshes and the dashboard flips to "Installed".
+
+### Skills
+
+10 skills live in `runtime/skills/` (each a `SKILL.md`, auto-discovered):
+coding, debugging, linux, research, planning, reasoning, plus termux-android,
+benchmarking, git-github, and model-ops. Keyword routing lives in
+`skill_router.py` — add keywords there when you add a skill.
 
 ## Project layout
 
@@ -124,6 +160,6 @@ pick it up automatically (`model_downloaded` is detected, not configured).
 
 ## Status
 
-Personal project, built incrementally on-device. The dashboard is currently a
-read-only operational view — model download/chat, agents, remote access, and
-tuning controls are intentionally not included yet.
+Personal project, built incrementally on-device. The dashboard is
+read-only except for the allow-listed model downloader — chat, agents,
+remote access, and tuning controls are intentionally not included yet.

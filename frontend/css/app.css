@@ -49,6 +49,10 @@ main{padding:10px;display:grid;gap:10px;grid-template-columns:1fr}
 .tag.tool{color:#5b8fd4;border-color:#5b8fd4}
 .tag.error{color:var(--err);border-color:var(--err)}
 .tag.model{color:var(--accent);border-color:var(--accent)}
+details.tech{margin-top:6px}
+details.tech summary{color:var(--muted);font-size:12px;min-height:44px;
+  display:flex;align-items:center;cursor:pointer}
+details.tech div{max-width:100%;overflow-wrap:anywhere}
 .input{width:100%;background:#0c0e10;border:1px solid var(--border);
   color:var(--text);border-radius:6px;padding:9px;margin-bottom:8px;font-size:14px}
 .mono{font-family:var(--mono)} .small{font-size:12px;color:var(--muted);white-space:pre-wrap}

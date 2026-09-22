@@ -39,7 +39,7 @@ async function refreshMemory(q){
     return "<span class='chip'>"+k+": "+(c[k]!=null?c[k]:"—")+"</span>"}).join("");
   var items=r.data.items||[];
   box.innerHTML=items.length?items.map(function(m){
-    return "<div class='row'><div class='meta'><span>"+esc(m.type)+"</span><span>"+esc(m.created_at||"")+"</span></div><div>"+esc(m.content||"")+"</div></div>"}).join("")
+    return "<div class='row'><div class='meta'><span>"+esc(m.type)+"</span><span>"+esc(m.created_at||"")+"</span></div><div>"+Dashboard.formatMemory(m.content)+"</div></div>"}).join("")
     :"<div class='row'>No memories found.</div>";
 }
 async function refreshMore(){
@@ -63,6 +63,57 @@ async function refreshMore(){
       return "<div class='row'><b>"+esc(x.project)+"</b><div>"+esc(x.title)+"</div><div class='meta'><span>"+esc(x.status||"active")+"</span><span>"+esc(x.notes||"")+"</span></div></div>"}).join("")
       :"<div class='row'>No active tasks.</div>";
   }else document.getElementById("tasksBox").innerHTML="<div class='row'>Tasks unavailable</div>";
+  refreshModels();
+}
+var dlTimer=null;
+async function refreshModels(){
+  var box=document.getElementById("modelsBox");
+  var r=await API.models();
+  if(!r.success){box.innerHTML="<div class='row'>Models unavailable: "+esc(r.error)+"</div>";return}
+  var dl=r.data.download||{status:"idle"};
+  var html=(r.data.catalog||[]).map(function(m){
+    var pctDl=null;
+    if(dl.status==="downloading"&&dl.model_id===m.id&&dl.bytes_total){
+      pctDl=Math.min(99,Math.round(dl.bytes_done/dl.bytes_total*100));
+    }
+    var state=m.installed?"<span class='tag model'>INSTALLED</span>"
+      :(dl.status==="downloading"&&dl.model_id===m.id?"<span class='tag tool'>DOWNLOADING "+(pctDl!=null?pctDl+"%":"…")+"</span>"
+      :"<button class='chip' data-dl='"+esc(m.id)+"'>Download</button>");
+    return "<div class='row'><b>"+esc(m.name)+"</b> <span class='tag'>"+esc(m.quant)+"</span>"
+      +"<div class='meta'><span>~"+esc(m.size_mb)+" MB</span><span>needs "+esc(m.min_ram_mb)+" MB free RAM</span><span>ctx "+esc(m.context)+"</span></div>"
+      +"<div>"+esc(m.notes||"")+"</div>"
+      +(pctDl!=null?"<div class='bar'><div class='bar-fill' style='width:"+pctDl+"%'></div></div>":"")
+      +"<div style='margin-top:6px'>"+state+"</div></div>";
+  }).join("");
+  if(dl.status==="error")html="<div class='row'><div class='meta'><span class='tag error'>ERROR</span></div><div>"+esc(dl.error||"download failed")+"</div></div>"+html;
+  box.innerHTML=html||"<div class='row'>No models in catalog.</div>";
+  box.querySelectorAll("[data-dl]").forEach(function(b){
+    b.onclick=function(){API.downloadModel(b.getAttribute("data-dl")).then(function(){refreshModels()})};
+  });
+  clearTimeout(dlTimer);
+  if(dl.status==="downloading")dlTimer=setTimeout(refreshModels,2000);
+}
+async function exportReport(){
+  var t=await API.telemetry(),d=await API.diagnostics();
+  var L=[];
+  L.push("# PilliVesh diagnostics report");
+  if(t.success){var s=t.data.system||{},mem=s.memory||{};
+    L.push("Date: "+t.data.timestamp);
+    L.push("CPU: "+(s.cpu_cores!=null?s.cpu_cores+" cores":"n/a"));
+    L.push("RAM: "+mem.used_mb+"/"+mem.total_mb+" MB (avail "+mem.available_mb+")");
+    L.push("Swap: "+mem.swap_used_mb+"/"+mem.swap_total_mb+" MB");
+    L.push("GPU: "+((t.data.gpu||{}).device||"n/a")+" Vulkan="+((t.data.gpu||{}).vulkan_available));
+    L.push("llama.cpp: "+((t.data.runtime||{}).llama_version||"n/a"));
+  }
+  if(d.success){L.push("Python: "+d.data.python);
+    L.push("Models: "+((d.data.models||[]).map(function(m){return m.name}).join(", ")||"0 installed"));}
+  var text=L.join("\n");
+  try{await navigator.clipboard.writeText(text);alert("Report copied to clipboard.");}
+  catch(e){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));
+    a.download="pillivesh-diagnostics.txt";a.click();
+  }
 }
 function show(v){
   currentView=v;
@@ -84,5 +135,14 @@ document.querySelectorAll("#logFilters .chip").forEach(function(b){b.onclick=fun
   b.classList.add("on");logFilter=b.getAttribute("data-f");refreshLogs()}});
 document.getElementById("memSearch").addEventListener("input",function(e){
   clearTimeout(memTimer);memTimer=setTimeout(function(){refreshMemory(e.target.value)},350)});
+document.getElementById("exportBtn").onclick=function(){exportReport()};
+var refreshTimer=setInterval(function(){if(currentView==="home"||currentView==="runtime")refreshHome()},5000);
+document.getElementById("stopBtn").onclick=function(){
+  if(!confirm("Stop the PilliVesh server and close the port?"))return;
+  API.stopServer().then(function(){
+    clearInterval(refreshTimer);clearTimeout(dlTimer);
+    document.getElementById("statusText").textContent="■ Server stopped";
+    document.getElementById("updateLine").textContent="Port closed. Restart with ./run-dashboard.sh";
+  });
+};
 refreshHome();
-setInterval(function(){if(currentView==="home"||currentView==="runtime")refreshHome()},5000);

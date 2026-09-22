@@ -3,14 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Local AI — Control Center</title>
+<title>PilliVesh — Local Intelligence</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1113">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="apple-touch-icon" href="assets/icon.svg">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <div class="brand-title">LOCAL AI</div>
-    <div class="brand-sub">CONTROL CENTER</div>
+    <div class="brand-title">PilliVesh</div>
+    <div class="brand-sub">LOCAL INTELLIGENCE</div>
   </div>
   <div class="livebox">
     <div id="statusLine" class="status"><span class="dot unknown"></span><span id="statusText">Checking…</span></div>
@@ -26,11 +30,13 @@
       <div id="hwGrid" class="kv-grid"></div>
       <div class="bar-row"><div class="bar-label"><span>RAM</span><span id="ramText"></span></div><div class="bar"><div id="ramBar" class="bar-fill"></div></div></div>
       <div class="bar-row"><div class="bar-label"><span>SWAP</span><span id="swapText"></span></div><div class="bar"><div id="swapBar" class="bar-fill alt"></div></div></div>
+      <div id="ramChart"></div>
     </div>
 
     <div class="panel">
       <div class="panel-h">THERMALS</div>
       <div id="thermGrid" class="kv-grid"></div>
+      <div id="thermChart"></div>
     </div>
 
     <div class="panel">
@@ -86,6 +92,7 @@
         <button data-goto="skills">Skills</button>
         <button data-goto="tools">Tools</button>
         <button data-goto="tasks">Tasks</button>
+        <button data-goto="models">Models</button>
         <button data-goto="diagnostics">Diagnostics</button>
         <button data-goto="settings">Settings</button>
       </div>
@@ -93,13 +100,14 @@
     <div class="panel" id="more-skills"><div class="panel-h">SKILLS</div><div id="skillsBox" class="list"></div></div>
     <div class="panel" id="more-tools"><div class="panel-h">TOOLS</div><div id="toolsBox" class="list"></div></div>
     <div class="panel" id="more-tasks"><div class="panel-h">TASKS</div><div id="tasksBox" class="list"></div></div>
-    <div class="panel" id="more-diag"><div class="panel-h">DIAGNOSTICS</div><div id="diagBox2" class="kv-grid"></div></div>
+    <div class="panel" id="more-models"><div class="panel-h">MODELS</div><div id="modelsBox" class="list"></div></div>
+    <div class="panel" id="more-diag"><div class="panel-h">DIAGNOSTICS</div><div id="diagBox2" class="kv-grid"></div><div class="menu" style="margin-top:8px"><button id="exportBtn">Copy diagnostics report</button></div></div>
     <div class="panel" id="more-settings"><div class="panel-h">SETTINGS</div><div id="settingsBox" class="kv-grid">
       <div class="kv"><span class="k">API host</span><span class="v">127.0.0.1 (localhost only)</span></div>
       <div class="kv"><span class="k">API port</span><span class="v">8080</span></div>
       <div class="kv"><span class="k">Refresh</span><span class="v">5 s</span></div>
       <div class="kv"><span class="k">Mode</span><span class="v">Read-only</span></div>
-    </div></div>
+    </div><div class="menu" style="margin-top:8px"><button id="stopBtn">Stop server &amp; close port</button></div></div>
   </section>
 </main>
 

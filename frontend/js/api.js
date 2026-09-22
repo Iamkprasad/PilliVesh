@@ -13,5 +13,20 @@ var API={
   skills(name){return this.get("/api/skills"+(name?("?name="+encodeURIComponent(name)):""))},
   tools(){return this.get("/api/tools")},
   tasks(){return this.get("/api/tasks")},
-  diagnostics(){return this.get("/api/diagnostics")}
+  diagnostics(){return this.get("/api/diagnostics")},
+  models(){return this.get("/api/models")},
+  async downloadModel(id){
+    try{
+      var r=await fetch("/api/models/download",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id:id})});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
+  },
+  async stopServer(){
+    try{
+      var r=await fetch("/api/server/stop",{method:"POST"});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
+  }
 };

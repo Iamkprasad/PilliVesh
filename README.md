@@ -61,6 +61,14 @@ Stop it with `Ctrl+C`, or from another shell:
   `llama-cli` leftovers, then best-effort `am kill-all` (background apps only).
   Each step reports success/failure honestly — stock Android without root
   cannot drop the global page cache.
+- **Load / Unload model** — More → Models shows `[ LOAD ]` / `[ UNLOAD ]`
+  (and a `[RESIDENT]` chip). Load spawns a lazy pure-CPU `llama-server` only
+  when you ask; Unload kills it so idle battery drain is zero. One model
+  resident at a time; loading another swaps cleanly. RAM is checked against
+  each catalog entry's `min_ram_mb` first.
+- **Color themes** — More → Settings picks Green / Pink / Yellow / Blue /
+  Red phosphor themes (Terminal CLI style). Choice persists in
+  `localStorage` and applies before first paint.
 - **Live refresh** — telemetry re-polls every 5 seconds and updates in place;
   if a source disappears the UI shows an unavailable state instead of crashing.
 
@@ -81,15 +89,25 @@ The dashboard talks to a tiny stdlib HTTP server (`runtime/server/`):
 | `/api/tools`        | tool registry (`runtime/tools/`)        |
 | `/api/tasks`        | `runtime/state/state.db`                |
 | `/api/diagnostics`  | profile, `models/`, file presence       |
-| `/api/models`       | catalog + installed + download status   |
+| `/api/models`       | catalog + installed + download + loaded |
 | `/api/health`       | liveness probe                          |
 
 Write endpoints (POST, still localhost-only): `/api/models/download`
-(starts an allow-listed model download), `/api/memory/free` (best-effort
-RAM cleanup — fixed internal steps only, no shell input), and
-`/api/server/stop` (shuts the server down). There is deliberately no
-remote control, no auth, and no general shell-execution endpoint. It binds
-to `127.0.0.1` only.
+(starts an allow-listed model download), `/api/models/load` (spawns a
+battery-lazy `llama-server` for one catalog model — RAM-gated, swaps any
+resident model), `/api/models/unload` (kills the process; stops the router
+when the last model leaves), `/api/models/router/stop` (force-kill),
+`/api/memory/free` (best-effort RAM cleanup — fixed internal steps only,
+no shell input), and `/api/server/stop` (shuts the dashboard down).
+There is deliberately no remote control, no auth, and no general
+shell-execution endpoint. It binds to `127.0.0.1` only.
+
+Model load is intentionally lazy: nothing runs in the background until you
+press **Load**, and **Unload** (or swapping models) kills `llama-server` so
+the phone's battery is not drained while idle. Only one model is resident
+at a time (`--models-max` equivalent). On this Termux build the server runs
+pure-CPU (`-dev none`) because the packaged Vulkan backend segfaults while
+loading GGUFs.
 
 ## Handy runtime commands
 

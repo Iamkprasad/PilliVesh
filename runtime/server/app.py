@@ -80,25 +80,35 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(ok(handlers.free_ram()))
             except Exception as e:
                 return self._send_json(fail(f"Internal error: {e}"), 500)
-        if route != "/api/models/download":
-            return self._send_json(fail("Not found"), 404)
-        try:
-            length = int(self.headers.get("Content-Length") or 0)
-        except Exception:
-            length = 0
-        if length <= 0 or length > 1024:
-            return self._send_json(fail("Bad request"), 400)
-        try:
-            body = json.loads(self.rfile.read(length).decode("utf-8"))
-        except Exception:
-            return self._send_json(fail("Bad request"), 400)
-        try:
-            return self._send_json(ok(handlers.start_download(
-                body.get("id") if isinstance(body, dict) else None)))
-        except ValueError as e:
-            return self._send_json(fail(e), 200)
-        except Exception as e:
-            return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route == "/api/models/router/stop":
+            try:
+                return self._send_json(ok(handlers.stop_router()))
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route in ("/api/models/download", "/api/models/load",
+                     "/api/models/unload"):
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except Exception:
+                length = 0
+            if length <= 0 or length > 1024:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except Exception:
+                return self._send_json(fail("Bad request"), 400)
+            model_id = body.get("id") if isinstance(body, dict) else None
+            try:
+                if route == "/api/models/download":
+                    return self._send_json(ok(handlers.start_download(model_id)))
+                if route == "/api/models/load":
+                    return self._send_json(ok(handlers.load_model(model_id)))
+                return self._send_json(ok(handlers.unload_model(model_id)))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        return self._send_json(fail("Not found"), 404)
 
     def do_GET(self):
         parsed = urlparse(self.path)

@@ -12,7 +12,7 @@ var Charts={
       return (i?"L":"M")+x+" "+y;
     }).join(" ");
     el.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" role="img">'
-      +'<path d="'+d+'" fill="none" stroke="#3fb27f" stroke-width="1.5"/></svg>'
+      +'<path d="'+d+'" fill="none" stroke="var(--primary)" stroke-width="1.5"/></svg>'
       +'<div class="small">Last '+points.length+' runs · min '+min+' / max '+max+' tok/s</div>';
   },
   multi:function(el,series,unit){

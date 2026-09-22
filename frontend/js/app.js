@@ -65,33 +65,85 @@ async function refreshMore(){
   }else document.getElementById("tasksBox").innerHTML="<div class='row'>Tasks unavailable</div>";
   refreshModels();
 }
-var dlTimer=null;
+var dlTimer=null,modelBusy=false;
 async function refreshModels(){
   var box=document.getElementById("modelsBox");
+  if(!box)return;
   var r=await API.models();
   if(!r.success){box.innerHTML="<div class='row'>Models unavailable: "+esc(r.error)+"</div>";return}
   var dl=r.data.download||{status:"idle"};
+  var routerUp=!!r.data.router_running;
   var html=(r.data.catalog||[]).map(function(m){
     var pctDl=null;
     if(dl.status==="downloading"&&dl.model_id===m.id&&dl.bytes_total){
       pctDl=Math.min(99,Math.round(dl.bytes_done/dl.bytes_total*100));
     }
-    var state=m.installed?"<span class='tag model'>INSTALLED</span>"
-      :(dl.status==="downloading"&&dl.model_id===m.id?"<span class='tag tool'>DOWNLOADING "+(pctDl!=null?pctDl+"%":"…")+"</span>"
-      :"<button class='chip' data-dl='"+esc(m.id)+"'>Download</button>");
-    return "<div class='row'><b>"+esc(m.name)+"</b> <span class='tag'>"+esc(m.quant)+"</span>"
+    var actions;
+    if(!m.installed){
+      actions=(dl.status==="downloading"&&dl.model_id===m.id)
+        ?"<span class='tag tool'>DOWNLOADING "+(pctDl!=null?pctDl+"%":"…")+"</span>"
+        :"<button class='chip' data-dl='"+esc(m.id)+"'>Download</button>";
+    }else if(m.loaded){
+      actions="<span class='tag resident'>RESIDENT</span> "
+        +"<button class='chip' data-unload='"+esc(m.id)+"'"+(modelBusy?" disabled":"")+">Unload</button>";
+    }else{
+      actions="<button class='chip' data-load='"+esc(m.id)+"'"+(modelBusy?" disabled":"")+">Load</button>";
+    }
+    var stateTags="<span class='tag model'>INSTALLED</span>";
+    if(!m.installed)stateTags="";
+    var routerTag=routerUp?"<span class='tag tool'>ROUTER UP</span>":"";
+    return "<div class='row'><b>"+esc(m.name)+"</b> <span class='tag'>"+esc(m.quant)+"</span> "+stateTags+" "+routerTag
       +"<div class='meta'><span>~"+esc(m.size_mb)+" MB</span><span>needs "+esc(m.min_ram_mb)+" MB free RAM</span><span>ctx "+esc(m.context)+"</span></div>"
       +"<div>"+esc(m.notes||"")+"</div>"
       +(pctDl!=null?"<div class='bar'><div class='bar-fill' style='width:"+pctDl+"%'></div></div>":"")
-      +"<div style='margin-top:6px'>"+state+"</div></div>";
+      +"<div class='model-actions' style='margin-top:6px'>"+actions+"</div></div>";
   }).join("");
   if(dl.status==="error")html="<div class='row'><div class='meta'><span class='tag error'>ERROR</span></div><div>"+esc(dl.error||"download failed")+"</div></div>"+html;
+  var ops=document.getElementById("modelOpsResult");
   box.innerHTML=html||"<div class='row'>No models in catalog.</div>";
   box.querySelectorAll("[data-dl]").forEach(function(b){
     b.onclick=function(){API.downloadModel(b.getAttribute("data-dl")).then(function(){refreshModels()})};
   });
+  box.querySelectorAll("[data-load]").forEach(function(b){
+    b.onclick=function(){runModelOp("load",b.getAttribute("data-load"))};
+  });
+  box.querySelectorAll("[data-unload]").forEach(function(b){
+    b.onclick=function(){runModelOp("unload",b.getAttribute("data-unload"))};
+  });
   clearTimeout(dlTimer);
   if(dl.status==="downloading")dlTimer=setTimeout(refreshModels,2000);
+}
+function modelOpsOut(){
+  return document.getElementById("modelOpsResult");
+}
+async function runModelOp(op,id){
+  if(modelBusy)return;
+  var out=modelOpsOut();
+  if(op==="load"){
+    if(!confirm("Load this model into RAM? (only one resident; loading another swaps)"))return;
+  }else{
+    if(!confirm("Unload this model? The inference process stops to save battery."))return;
+  }
+  modelBusy=true;
+  refreshModels();
+  if(out){out.innerHTML="<span class='small'>… "+esc(op.toUpperCase())+"ING "+esc(id)+"</span>"}
+  try{
+    var r=op==="load"?await API.loadModel(id):await API.unloadModel(id);
+    if(!r.success){
+      if(out)out.innerHTML="<span class='err-text'>[ERR] "+esc(op)+" failed: "+esc(r.error||"unknown")+"</span>";
+    }else{
+      var d=r.data||{};
+      var msg=op==="load"
+        ?"[OK] "+esc(id)+" resident (pid "+esc(String(d.pid||"?"))+")"
+        :"[OK] "+esc(id)+" unloaded"+(d.router_stopped?" — router stopped":"");
+      if(out)out.innerHTML="<span class='ok-text'>"+msg+"</span>";
+    }
+  }catch(e){
+    if(out)out.innerHTML="<span class='err-text'>[ERR] "+esc(String(e))+"</span>";
+  }
+  modelBusy=false;
+  refreshModels();
+  if(op==="load"||op==="unload")refreshHome();
 }
 async function exportReport(){
   var t=await API.telemetry(),d=await API.diagnostics();
@@ -121,7 +173,7 @@ async function freeRam(){
   btn.disabled=true;btn.textContent="Cleaning…";out.textContent="";
   var r=await API.freeRam();
   btn.disabled=false;btn.textContent="Free up RAM";
-  if(!r.success){out.innerHTML="<span style='color:var(--err)'>Cleanup failed: "+esc(r.error)+"</span>";return}
+  if(!r.success){out.innerHTML="<span class='err-text'>[ERR] Cleanup failed: "+esc(r.error)+"</span>";return}
   var d=r.data||{},acts=d.actions||[];
   var freed=d.freed_mb;
   var head=freed==null?"Cleanup finished (memory delta unavailable)":
@@ -131,6 +183,17 @@ async function freeRam(){
   }).join("<br>");
   out.innerHTML="<b>"+esc(head)+"</b><br>"+lines;
   refreshHome();
+}
+function applyTheme(name){
+  var allowed={green:1,pink:1,yellow:1,blue:1,red:1};
+  if(!allowed[name])name="green";
+  document.documentElement.setAttribute("data-theme",name);
+  try{localStorage.setItem("pv-theme",name)}catch(e){}
+  document.querySelectorAll("#themeRow .theme-chip").forEach(function(b){
+    b.classList.toggle("on",b.getAttribute("data-theme")===name);
+  });
+  var m=document.querySelector('meta[name="theme-color"]');
+  if(m)m.setAttribute("content","#0a0a0a");
 }
 function show(v){
   currentView=v;
@@ -154,6 +217,12 @@ document.getElementById("memSearch").addEventListener("input",function(e){
   clearTimeout(memTimer);memTimer=setTimeout(function(){refreshMemory(e.target.value)},350)});
 document.getElementById("exportBtn").onclick=function(){exportReport()};
 document.getElementById("freeRamBtn").onclick=function(){freeRam()};
+document.querySelectorAll("#themeRow .theme-chip").forEach(function(b){
+  b.onclick=function(){applyTheme(b.getAttribute("data-theme"))};
+});
+try{
+  applyTheme(localStorage.getItem("pv-theme")||"green");
+}catch(e){applyTheme("green")}
 var refreshTimer=setInterval(function(){if(currentView==="home"||currentView==="runtime")refreshHome()},5000);
 document.getElementById("stopBtn").onclick=function(){
   if(!confirm("Stop the PilliVesh server and close the port?"))return;

@@ -72,13 +72,13 @@ var Dashboard={
     var hist=t.history||[];
     function col(key,fn){return hist.map(function(h){var v=h[key];return v==null?null:fn(v)})}
     Charts.multi(document.getElementById("thermChart"),[
-      {name:"CPU",color:"#d9a13b",values:col("cpu",function(v){return v})},
-      {name:"GPU",color:"#5b8fd4",values:col("gpu",function(v){return v})},
-      {name:"Batt",color:"#3fb27f",values:col("battery",function(v){return v})}
+      {name:"CPU",color:"var(--secondary)",values:col("cpu",function(v){return v})},
+      {name:"GPU",color:"var(--alt)",values:col("gpu",function(v){return v})},
+      {name:"Batt",color:"var(--primary)",values:col("battery",function(v){return v})}
     ],"°C");
     Charts.multi(document.getElementById("ramChart"),[
-      {name:"Used",color:"#3fb27f",values:col("ram_used_mb",function(v){return +(v/1024).toFixed(2)})},
-      {name:"Total",color:"#8b949d",values:col("ram_total_mb",function(v){return +(v/1024).toFixed(2)})}
+      {name:"Used",color:"var(--primary)",values:col("ram_used_mb",function(v){return +(v/1024).toFixed(2)})},
+      {name:"Total",color:"var(--muted)",values:col("ram_total_mb",function(v){return +(v/1024).toFixed(2)})}
     ]," GB");
 
     var rt=t.runtime||{},bm=t.benchmark||{};
@@ -132,7 +132,7 @@ var Dashboard={
       this.kv("API host","127.0.0.1 (localhost only)")+
       this.kv("API port","8080")+
       this.kv("Refresh","5 s")+
-      this.kv("Mode","Read-only");}
+      this.kv("Mode","Read-only + model load");}
     if(diag){
       document.getElementById("diagBox").innerHTML=
         this.kv("Python",esc(diag.python||"—"))+

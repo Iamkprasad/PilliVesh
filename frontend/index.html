@@ -1,14 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="green">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PilliVesh — Local Intelligence</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f1113">
+<meta name="theme-color" content="#0a0a0a">
 <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
 <link rel="apple-touch-icon" href="assets/icon.svg">
 <link rel="stylesheet" href="css/app.css">
+<script>
+(function(){
+  try{
+    var t=localStorage.getItem("pv-theme")||"green";
+    document.documentElement.setAttribute("data-theme",t);
+    var m=document.querySelector('meta[name="theme-color"]');
+    if(m)m.setAttribute("content","#0a0a0a");
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -31,6 +41,7 @@
       <div class="bar-row"><div class="bar-label"><span>RAM</span><span id="ramText"></span></div><div class="bar"><div id="ramBar" class="bar-fill"></div></div></div>
       <div class="bar-row"><div class="bar-label"><span>SWAP</span><span id="swapText"></span></div><div class="bar"><div id="swapBar" class="bar-fill alt"></div></div></div>
       <div id="ramChart"></div>
+      <div class="ascii-rule">================================</div>
       <div class="menu" style="margin-top:8px"><button id="freeRamBtn">Free up RAM</button></div>
       <div id="freeRamResult" class="small" style="margin-top:6px"></div>
     </div>
@@ -65,7 +76,7 @@
     <div class="panel">
       <div class="panel-h">MEMORY</div>
       <div id="memCounts" class="chips"></div>
-      <input id="memSearch" class="input" type="search" placeholder="Search memory…" autocomplete="off">
+      <div class="input-wrap"><input id="memSearch" class="input" type="search" placeholder="search memory…" autocomplete="off"></div>
       <div id="memList" class="list"></div>
     </div>
   </section>
@@ -102,14 +113,26 @@
     <div class="panel" id="more-skills"><div class="panel-h">SKILLS</div><div id="skillsBox" class="list"></div></div>
     <div class="panel" id="more-tools"><div class="panel-h">TOOLS</div><div id="toolsBox" class="list"></div></div>
     <div class="panel" id="more-tasks"><div class="panel-h">TASKS</div><div id="tasksBox" class="list"></div></div>
-    <div class="panel" id="more-models"><div class="panel-h">MODELS</div><div id="modelsBox" class="list"></div></div>
+    <div class="panel" id="more-models"><div class="panel-h">MODELS</div><div id="modelsBox" class="list"></div><div id="modelOpsResult" class="small" style="margin-top:6px"></div></div>
     <div class="panel" id="more-diag"><div class="panel-h">DIAGNOSTICS</div><div id="diagBox2" class="kv-grid"></div><div class="menu" style="margin-top:8px"><button id="exportBtn">Copy diagnostics report</button></div></div>
-    <div class="panel" id="more-settings"><div class="panel-h">SETTINGS</div><div id="settingsBox" class="kv-grid">
-      <div class="kv"><span class="k">API host</span><span class="v">127.0.0.1 (localhost only)</span></div>
-      <div class="kv"><span class="k">API port</span><span class="v">8080</span></div>
-      <div class="kv"><span class="k">Refresh</span><span class="v">5 s</span></div>
-      <div class="kv"><span class="k">Mode</span><span class="v">Read-only</span></div>
-    </div><div class="menu" style="margin-top:8px"><button id="stopBtn">Stop server &amp; close port</button></div></div>
+    <div class="panel" id="more-settings">
+      <div class="panel-h">SETTINGS</div>
+      <div id="settingsBox" class="kv-grid">
+        <div class="kv"><span class="k">API host</span><span class="v">127.0.0.1 (localhost only)</span></div>
+        <div class="kv"><span class="k">API port</span><span class="v">8080</span></div>
+        <div class="kv"><span class="k">Refresh</span><span class="v">5 s</span></div>
+        <div class="kv"><span class="k">Mode</span><span class="v">Read-only + model load</span></div>
+      </div>
+      <div class="ascii-rule">---------- THEME ----------</div>
+      <div id="themeRow" class="theme-row">
+        <button class="theme-chip on" data-theme="green"><span class="sw"></span>Green</button>
+        <button class="theme-chip" data-theme="pink"><span class="sw"></span>Pink</button>
+        <button class="theme-chip" data-theme="yellow"><span class="sw"></span>Yellow</button>
+        <button class="theme-chip" data-theme="blue"><span class="sw"></span>Blue</button>
+        <button class="theme-chip" data-theme="red"><span class="sw"></span>Red</button>
+      </div>
+      <div class="menu" style="margin-top:8px"><button id="stopBtn">Stop server &amp; close port</button></div>
+    </div>
   </section>
 </main>
 

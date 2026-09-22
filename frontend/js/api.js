@@ -29,6 +29,22 @@ var API={
       return await r.json();
     }catch(e){return {success:false,error:String(e)}}
   },
+  async loadModel(id){
+    try{
+      var r=await fetch("/api/models/load",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id:id})});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
+  },
+  async unloadModel(id){
+    try{
+      var r=await fetch("/api/models/unload",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id:id})});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
+  },
   async stopServer(){
     try{
       var r=await fetch("/api/server/stop",{method:"POST"});

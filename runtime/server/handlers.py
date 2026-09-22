@@ -243,12 +243,37 @@ def get_tasks():
 def get_models():
     from runtime.model.catalog import list_models
     from runtime.model.downloader import installed, status
+    from runtime.model import router as router_mod
     catalog = list_models()
     have = {m["name"] for m in installed()}
+    # Live router status (best-effort; never fails the whole endpoint).
+    router_running = False
+    loaded_ids = []
+    router_models = []
+    try:
+        info = router_mod.list_models()
+        router_running = bool(info.get("router_running"))
+        router_models = info.get("models", [])
+        loaded_ids = router_mod.loaded_model_ids()
+    except Exception:
+        pass
+    by_stem = {}
+    from pathlib import Path as _P
+    for entry in catalog:
+        by_stem[_P(entry["filename"]).stem] = entry["id"]
+    live_by_id = {}
+    for m in router_models:
+        cid = by_stem.get(str(m.get("id")))
+        if cid:
+            live_by_id[cid] = m
     for entry in catalog:
         entry["installed"] = entry["filename"] in have
+        live = live_by_id.get(entry["id"])
+        entry["loaded"] = entry["id"] in loaded_ids
+        entry["router_status"] = (live or {}).get("status")
     return {"catalog": catalog, "installed": installed(),
-            "download": status()}
+            "download": status(), "router_running": router_running,
+            "loaded_ids": loaded_ids}
 
 
 def start_download(model_id):
@@ -256,6 +281,25 @@ def start_download(model_id):
     if not model_id or not isinstance(model_id, str):
         raise ValueError("Missing model id")
     return download_async(model_id.strip())
+
+
+def load_model(model_id):
+    from runtime.model import router as router_mod
+    if not model_id or not isinstance(model_id, str):
+        raise ValueError("Missing model id")
+    return router_mod.load_model(model_id.strip())
+
+
+def unload_model(model_id):
+    from runtime.model import router as router_mod
+    if not model_id or not isinstance(model_id, str):
+        raise ValueError("Missing model id")
+    return router_mod.unload_model(model_id.strip())
+
+
+def stop_router():
+    from runtime.model import router as router_mod
+    return router_mod.stop_router()
 
 
 def free_ram():

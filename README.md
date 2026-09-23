@@ -67,16 +67,45 @@ Stop it with `Ctrl+C`, or from another shell:
   resident at a time; loading another swaps cleanly. RAM is checked against
   each catalog entry's `min_ram_mb` first.
 - **Chat** — Chat tab talks to the resident model through `POST /api/chat`
-  (proxied to `llama-server` on `127.0.0.1:8081`). Clear history, open the
-  llama Web UI, Enter to send. Status line tells you when nothing is loaded.
+  (proxied to `llama-server` on `127.0.0.1:8081`). Tokens **stream live**
+  (NDJSON), messages show role + timestamp, hover to copy, animated typing
+  dots until the first token. Clear history or open the llama Web UI from the
+  toolbar. Status line tells you when nothing is loaded.
+- **Model efficiency / TPS** — while a model is resident the server runs a
+  **light probe** every ~30s (`POST /v1/chat/completions`, up to 48 tokens)
+  and records prompt/generation tok/s + latency into `results/benchmark_*`
+  and `results/model_stats/<id>.jsonl`. Home → MODEL BENCHMARK shows the
+  latest numbers and a live chart; **Run benchmark** forces a sample. More →
+  Models shows avg/min/max tok/s, run count, and an expandable table +
+  sparkline per model. More → **Model Stats** is the side-by-side
+  comparison panel.
 - **Color themes** — More → Settings picks Green / Pink / Yellow / Blue /
   Red phosphor themes (Terminal CLI style). Choice persists in
   `localStorage` and applies before first paint.
-- **Live refresh** — telemetry re-polls every 5 seconds and updates in place;
-  if a source disappears the UI shows an unavailable state instead of crashing.
+- **Live refresh** — telemetry is sampled on the server every 5 seconds
+  (daemon thread) and the UI re-polls every 5 seconds; if a source
+  disappears the UI shows an unavailable state instead of crashing.
+- **Auto-load model** — on dashboard start the first installed catalog model
+  is loaded in the background (disable with `AI_LAB_AUTOLOAD=0`) so chat and
+  the opencode local provider work without a manual Load.
 
 Everything displayed is real data from the local runtime. When there is no
 model, no benchmark, or no sensor, the UI says so honestly.
+
+## Using the local model in opencode
+
+opencode is configured (global `~/.config/opencode/opencode.jsonc`) with an
+OpenAI-compatible provider named **`llamacpp`** pointing at the resident
+server:
+
+- baseURL: `http://127.0.0.1:8081/v1` (model port **8081**, not the
+  dashboard’s 8080)
+- default model: `llamacpp/smollm2-360m` (tool calling enabled)
+- llama-server must be running — auto-load on dashboard start, or press
+  **Load** in More → Models
+
+In the opencode TUI, pick the model with `/models` → **LLaMA.cpp (local)**
+if the session is on a cloud provider. Only one model is resident at a time.
 
 ## Local API (localhost only)
 
@@ -86,24 +115,27 @@ The dashboard talks to a tiny stdlib HTTP server (`runtime/server/`):
 |---------------------|-----------------------------------------|
 | `/api/telemetry`    | `results/telemetry_latest.json`         |
 | `/api/benchmark`    | `results/benchmark_latest.json` + history |
+| `/api/model-stats`  | summaries from `results/model_stats/`   |
 | `/api/logs`         | `logs/runtime.jsonl`                    |
 | `/api/memory`       | `runtime/memory/memory.db`              |
 | `/api/skills`       | `runtime/skills/*/SKILL.md`             |
 | `/api/tools`        | tool registry (`runtime/tools/`)        |
 | `/api/tasks`        | `runtime/state/state.db`                |
 | `/api/diagnostics`  | profile, `models/`, file presence       |
-| `/api/models`       | catalog + installed + download + loaded |
+| `/api/models`       | catalog + installed + download + loaded + per-model stats |
 | `/api/health`       | liveness probe                          |
 
 Write endpoints (POST, still localhost-only): `/api/models/download`
 (starts an allow-listed model download), `/api/models/load` (spawns a
 battery-lazy `llama-server` for one catalog model — RAM-gated, swaps any
-resident model), `/api/models/unload` (kills the process; stops the router
-when the last model leaves), `/api/models/router/stop` (force-kill),
-`/api/chat` (OpenAI-style messages, proxied to the resident model on
-port 8081 — fails clearly when nothing is loaded), `/api/memory/free`
-(best-effort RAM cleanup — fixed internal steps only, no shell input),
-and `/api/server/stop` (shuts the dashboard down).
+resident model; fires a benchmark probe on success), `/api/models/unload`
+(kills the process; stops the router when the last model leaves),
+`/api/models/router/stop` (force-kill), `/api/chat` (OpenAI-style messages
+proxied to the resident model on port 8081 — pass `"stream": true` for an
+NDJSON token stream; fails clearly when nothing is loaded),
+`/api/benchmark/run` (light probe vs the resident model; optional `{"id"}`),
+`/api/memory/free` (best-effort RAM cleanup — fixed internal steps only,
+no shell input), and `/api/server/stop` (shuts the dashboard down).
 There is deliberately no remote control, no auth, and no general
 shell-execution endpoint. It binds to `127.0.0.1` only.
 

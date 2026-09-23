@@ -61,6 +61,10 @@
       <div class="panel-h">MODEL BENCHMARK</div>
       <div id="benchBox"></div>
       <div id="benchChart"></div>
+      <div class="menu" style="margin-top:8px">
+        <button id="runBenchBtn">Run benchmark</button>
+      </div>
+      <div id="benchResult" class="small" style="margin-top:6px"></div>
     </div>
   </section>
 
@@ -83,20 +87,23 @@
 
   <!-- CHAT -->
   <section id="view-chat" class="view">
-    <div class="panel">
+    <div class="panel chat-panel">
       <div class="panel-h">CHAT</div>
-      <div id="chatStatus" class="small">Checking model…</div>
-      <div class="menu" style="margin-top:8px">
-        <button id="openLlamaUiBtn">Open llama Web UI</button>
-        <button id="clearChatBtn">Clear chat</button>
+      <div class="chat-toolbar">
+        <div id="chatStatus" class="small chat-status">Checking model…</div>
+        <div class="chat-actions">
+          <button id="openLlamaUiBtn" class="chip" type="button">Web UI</button>
+          <button id="clearChatBtn" class="chip" type="button">Clear</button>
+        </div>
       </div>
-      <div id="chatMessages" class="chat-messages"></div>
-      <div class="input-wrap" style="margin-top:8px">
-        <input id="chatInput" class="input" type="text" placeholder="type a message…" autocomplete="off">
+      <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+      <div class="chat-composer">
+        <input id="chatInput" class="input chat-input" type="text"
+               placeholder="message the local model…" autocomplete="off"
+               enterkeyhint="send">
+        <button id="chatSendBtn" class="chat-send" type="button">Send</button>
       </div>
-      <div class="menu" style="margin-top:6px">
-        <button id="chatSendBtn">Send</button>
-      </div>
+      <div id="chatMeta" class="small chat-meta"></div>
     </div>
   </section>
 
@@ -125,6 +132,7 @@
         <button data-goto="tools">Tools</button>
         <button data-goto="tasks">Tasks</button>
         <button data-goto="models">Models</button>
+        <button data-goto="stats">Model Stats</button>
         <button data-goto="diagnostics">Diagnostics</button>
         <button data-goto="settings">Settings</button>
       </div>
@@ -133,6 +141,7 @@
     <div class="panel" id="more-tools"><div class="panel-h">TOOLS</div><div id="toolsBox" class="list"></div></div>
     <div class="panel" id="more-tasks"><div class="panel-h">TASKS</div><div id="tasksBox" class="list"></div></div>
     <div class="panel" id="more-models"><div class="panel-h">MODELS</div><div id="modelsBox" class="list"></div><div id="modelOpsResult" class="small" style="margin-top:6px"></div></div>
+    <div class="panel" id="more-stats"><div class="panel-h">MODEL STATS</div><div id="statsSummary" class="small" style="margin-bottom:8px">Collecting efficiency samples…</div><div id="statsBox" class="list"></div></div>
     <div class="panel" id="more-diag"><div class="panel-h">DIAGNOSTICS</div><div id="diagBox2" class="kv-grid"></div><div class="menu" style="margin-top:8px"><button id="exportBtn">Copy diagnostics report</button></div></div>
     <div class="panel" id="more-settings">
       <div class="panel-h">SETTINGS</div>

@@ -87,10 +87,24 @@ def temperatures():
     return result
 
 
-def gpu_info():
-    output = command(["llama-cli", "--list-devices"])
+_gpu_cache = {"data": None, "at": 0.0}
+_GPU_TTL = 300.0
 
-    return {
+
+def gpu_info(force=False):
+    """Probe llama-cli devices; cache for 5 minutes so a 5s sampler
+    does not shell out every tick."""
+    import time as _time
+    now = _time.time()
+    if (
+        not force
+        and _gpu_cache["data"] is not None
+        and (now - _gpu_cache["at"]) < _GPU_TTL
+    ):
+        return _gpu_cache["data"]
+
+    output = command(["llama-cli", "--list-devices"])
+    data = {
         "vulkan_available": "Vulkan0:" in output,
         "device": (
             "Adreno (TM) 650"
@@ -99,6 +113,10 @@ def gpu_info():
         ),
         "raw": output,
     }
+    if "ERROR:" not in output:
+        _gpu_cache["data"] = data
+        _gpu_cache["at"] = now
+    return data
 
 
 def load_json(path):

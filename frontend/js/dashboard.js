@@ -96,8 +96,10 @@ var Dashboard={
 
     var bb=document.getElementById("benchBox");
     if(!b||b.status!=="success"){
-      bb.innerHTML=this.kv("Status","Waiting for model")+this.kv("Prompt speed","—")+this.kv("Generation speed","—")+this.kv("Latency","—")+this.kv("Model","Not installed");
-      Charts.line(document.getElementById("benchChart"),[]);
+      var waiting=(b&&b.status==="stale")?"Last run (no model loaded)":"Waiting for model";
+      bb.innerHTML=this.kv("Status",waiting)+this.kv("Prompt speed","—")+this.kv("Generation speed","—")+this.kv("Latency","—")+this.kv("Model",esc((b&&b.model)||"—"));
+      var hist0=((b&&b.history)||[]).map(function(r){return r.metrics&&r.metrics.generation_tokens_per_second}).filter(function(v){return v!=null});
+      Charts.line(document.getElementById("benchChart"),hist0);
     }else{
       var m=b.metrics||{};
       bb.innerHTML=this.kv("Status","Success")+

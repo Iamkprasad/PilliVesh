@@ -277,6 +277,78 @@ def get_models():
             "loaded_ids": loaded_ids}
 
 
+def get_models():
+    from runtime.model.catalog import list_models
+    from runtime.model.downloader import installed, status
+    from runtime.model import router as router_mod
+    catalog = list_models()
+    have = {m["name"] for m in installed()}
+    # Live router status (best-effort; never fails the whole endpoint).
+    router_running = False
+    loaded_ids = []
+    router_models = []
+    try:
+        info = router_mod.list_models()
+        router_running = bool(info.get("router_running"))
+        router_models = info.get("models", [])
+        loaded_ids = router_mod.loaded_model_ids()
+    except Exception:
+        pass
+    by_stem = {}
+    from pathlib import Path as _P
+    for entry in catalog:
+        by_stem[_P(entry["filename"]).stem] = entry["id"]
+    live_by_id = {}
+    for m in router_models:
+        cid = by_stem.get(str(m.get("id")))
+        if cid:
+            live_by_id[cid] = m
+    for entry in catalog:
+        entry["installed"] = entry["filename"] in have
+        live = live_by_id.get(entry["id"])
+        entry["loaded"] = entry["id"] in loaded_ids
+        entry["router_status"] = (live or {}).get("status")
+        # Per-model efficiency summary (best-effort).
+        try:
+            from benchmarks.probe import summarize
+            entry["stats"] = summarize(entry["id"])
+        except Exception:
+            entry["stats"] = None
+    return {"catalog": catalog, "installed": installed(),
+            "download": status(), "router_running": router_running,
+            "loaded_ids": loaded_ids}
+
+
+def get_model_stats(model_id=None):
+    """Full per-model stats for one id, or all catalog models."""
+    from runtime.model.catalog import list_models
+    from benchmarks.probe import summarize
+    if model_id:
+        return {"model_id": model_id, "stats": summarize(model_id)}
+    out = {}
+    for entry in list_models():
+        out[entry["id"]] = summarize(entry["id"])
+    return {"models": out}
+
+
+def run_benchmark(model_id=None):
+    """Run one light probe against the resident model (optionally check id)."""
+    from runtime.model import router as router_mod
+    from benchmarks.probe import run_probe
+
+    if model_id:
+        resident = router_mod.current_model_id()
+        if resident and model_id != resident:
+            raise ValueError(
+                f"Model {model_id} is not resident (loaded: {resident})"
+            )
+        if not resident and not router_mod.router_running():
+            raise ValueError(
+                "No model loaded. Press Load first, then benchmark."
+            )
+    return run_probe()
+
+
 def start_download(model_id):
     from runtime.model.downloader import download_async
     if not model_id or not isinstance(model_id, str):
@@ -288,14 +360,50 @@ def load_model(model_id):
     from runtime.model import router as router_mod
     if not model_id or not isinstance(model_id, str):
         raise ValueError("Missing model id")
-    return router_mod.load_model(model_id.strip())
+    result = router_mod.load_model(model_id.strip())
+    # Log load for the Logs view (model filter).
+    try:
+        from runtime.monitor.monitor import log_event
+        log_event("model_load", {
+            "model": model_id.strip(),
+            "status": result.get("status"),
+            "pid": result.get("pid"),
+            "message": f"Model {model_id} loaded",
+        })
+    except Exception:
+        pass
+    # Kick a probe so the Home benchmark panel updates immediately.
+    try:
+        from threading import Thread
+        Thread(target=_safe_probe, daemon=True).start()
+    except Exception:
+        pass
+    return result
+
+
+def _safe_probe():
+    try:
+        from benchmarks.probe import run_probe
+        run_probe()
+    except Exception:
+        pass
 
 
 def unload_model(model_id):
     from runtime.model import router as router_mod
     if not model_id or not isinstance(model_id, str):
         raise ValueError("Missing model id")
-    return router_mod.unload_model(model_id.strip())
+    result = router_mod.unload_model(model_id.strip())
+    try:
+        from runtime.monitor.monitor import log_event
+        log_event("model_unload", {
+            "model": model_id.strip(),
+            "status": result.get("status"),
+            "message": f"Model {model_id} unloaded",
+        })
+    except Exception:
+        pass
+    return result
 
 
 def stop_router():
@@ -389,6 +497,45 @@ def chat(messages, model=None, max_tokens=512, temperature=0.7):
         raise ValueError(f"Model error ({e.code}): {detail}")
     except Exception as e:
         raise ValueError(f"Chat request failed: {e}")
+
+
+def chat_stream_raw(messages, model=None, max_tokens=512, temperature=0.7):
+    """Open a streaming chat against llama-server. Returns the urllib response.
+
+    Caller must read SSE lines (`data: {...}` / `data: [DONE]`) and close.
+    Raises ValueError when no model is loaded or the request fails to start.
+    """
+    import urllib.error
+    import urllib.request
+    from runtime.model import router as router_mod
+
+    if not _model_reachable(router_mod):
+        raise ValueError(
+            "No model loaded. Go to More → Models and press Load first."
+        )
+    cleaned = _clean_messages(messages)
+    payload = {
+        "model": model or "local",
+        "messages": cleaned,
+        "max_tokens": _coerce_int(max_tokens, 512, 1, 2048),
+        "temperature": _coerce_float(temperature, 0.7, 0.0, 2.0),
+        "stream": True,
+    }
+    req = urllib.request.Request(
+        f"http://{router_mod.ROUTER_HOST}:{router_mod.ROUTER_PORT}"
+        f"/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json",
+                 "User-Agent": "PilliVesh/1.0"},
+        method="POST",
+    )
+    try:
+        return urllib.request.urlopen(req, timeout=180)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:500]
+        raise ValueError(f"Model error ({e.code}): {detail}")
+    except Exception as e:
+        raise ValueError(f"Chat stream failed: {e}")
 
 
 def free_ram():

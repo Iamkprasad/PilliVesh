@@ -6,8 +6,18 @@ var API={
       return j;
     }catch(e){return {success:false,error:String(e)}}
   },
+  async post(path,body){
+    try{
+      var r=await fetch(path,{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(body||{})});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
+  },
   telemetry(){return this.get("/api/telemetry")},
   benchmark(){return this.get("/api/benchmark")},
+  modelStats(id){return this.get("/api/model-stats"+(id?("?id="+encodeURIComponent(id)):""))},
+  runBenchmark(id){return this.post("/api/benchmark/run",id?{id:id}:{})},
   logs(f){return this.get("/api/logs?limit=100&type="+(f||"all"))},
   memory(q){return this.get("/api/memory?limit=20"+(q?("&q="+encodeURIComponent(q)):""))},
   skills(name){return this.get("/api/skills"+(name?("?name="+encodeURIComponent(name)):""))},
@@ -22,28 +32,13 @@ var API={
     }catch(e){return {success:false,error:String(e)}}
   },
   async downloadModel(id){
-    try{
-      var r=await fetch("/api/models/download",{method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({id:id})});
-      return await r.json();
-    }catch(e){return {success:false,error:String(e)}}
+    return this.post("/api/models/download",{id:id});
   },
   async loadModel(id){
-    try{
-      var r=await fetch("/api/models/load",{method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({id:id})});
-      return await r.json();
-    }catch(e){return {success:false,error:String(e)}}
+    return this.post("/api/models/load",{id:id});
   },
   async unloadModel(id){
-    try{
-      var r=await fetch("/api/models/unload",{method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({id:id})});
-      return await r.json();
-    }catch(e){return {success:false,error:String(e)}}
+    return this.post("/api/models/unload",{id:id});
   },
   async stopServer(){
     try{
@@ -58,5 +53,10 @@ var API={
         body:JSON.stringify(Object.assign({messages:messages},opts||{}))});
       return await r.json();
     }catch(e){return {success:false,error:String(e)}}
+  },
+  chatStream(messages,opts){
+    return fetch("/api/chat",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(Object.assign({messages:messages,stream:true},opts||{}))});
   }
 };

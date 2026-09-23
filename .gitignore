@@ -4,6 +4,7 @@ logs/*.jsonl
 results/*.json
 results/*.jsonl
 results/*.out
+results/model_stats/
 models/*
 !models/.gitkeep
 

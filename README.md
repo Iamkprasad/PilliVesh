@@ -66,6 +66,9 @@ Stop it with `Ctrl+C`, or from another shell:
   when you ask; Unload kills it so idle battery drain is zero. One model
   resident at a time; loading another swaps cleanly. RAM is checked against
   each catalog entry's `min_ram_mb` first.
+- **Chat** — Chat tab talks to the resident model through `POST /api/chat`
+  (proxied to `llama-server` on `127.0.0.1:8081`). Clear history, open the
+  llama Web UI, Enter to send. Status line tells you when nothing is loaded.
 - **Color themes** — More → Settings picks Green / Pink / Yellow / Blue /
   Red phosphor themes (Terminal CLI style). Choice persists in
   `localStorage` and applies before first paint.
@@ -75,7 +78,7 @@ Stop it with `Ctrl+C`, or from another shell:
 Everything displayed is real data from the local runtime. When there is no
 model, no benchmark, or no sensor, the UI says so honestly.
 
-## Local API (read-only, localhost only)
+## Local API (localhost only)
 
 The dashboard talks to a tiny stdlib HTTP server (`runtime/server/`):
 
@@ -97,8 +100,10 @@ Write endpoints (POST, still localhost-only): `/api/models/download`
 battery-lazy `llama-server` for one catalog model — RAM-gated, swaps any
 resident model), `/api/models/unload` (kills the process; stops the router
 when the last model leaves), `/api/models/router/stop` (force-kill),
-`/api/memory/free` (best-effort RAM cleanup — fixed internal steps only,
-no shell input), and `/api/server/stop` (shuts the dashboard down).
+`/api/chat` (OpenAI-style messages, proxied to the resident model on
+port 8081 — fails clearly when nothing is loaded), `/api/memory/free`
+(best-effort RAM cleanup — fixed internal steps only, no shell input),
+and `/api/server/stop` (shuts the dashboard down).
 There is deliberately no remote control, no auth, and no general
 shell-execution endpoint. It binds to `127.0.0.1` only.
 
@@ -160,7 +165,7 @@ benchmarking, git-github, and model-ops. Keyword routing lives in
 │   ├── css/app.css
 │   └── js/{api,state,utils,dashboard,charts,app}.js
 ├── runtime/             # the AI runtime the dashboard observes
-│   ├── server/          # read-only local API + static file server
+│   ├── server/          # localhost API + static file server
 │   ├── memory/          # SQLite memory (db is local-only, git-ignored)
 │   ├── state/           # SQLite tasks (local-only, git-ignored)
 │   ├── skills/          # skill packs, each with SKILL.md
@@ -189,6 +194,7 @@ benchmarking, git-github, and model-ops. Keyword routing lives in
 
 ## Status
 
-Personal project, built incrementally on-device. The dashboard is
-read-only except for the allow-listed model downloader — chat, agents,
-remote access, and tuning controls are intentionally not included yet.
+Personal project, built incrementally on-device. The dashboard is local-only:
+read views, allow-listed model download/load, RAM cleanup, and chat against a
+resident model — agents, remote access, and tuning controls are intentionally
+not included.

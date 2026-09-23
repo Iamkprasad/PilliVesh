@@ -78,7 +78,7 @@ var Dashboard={
     ],"°C");
     Charts.multi(document.getElementById("ramChart"),[
       {name:"Used",color:"var(--primary)",values:col("ram_used_mb",function(v){return +(v/1024).toFixed(2)})},
-      {name:"Total",color:"var(--muted)",values:col("ram_total_mb",function(v){return +(v/1024).toFixed(2)})}
+      {name:"Total",color:"var(--muted-text)",values:col("ram_total_mb",function(v){return +(v/1024).toFixed(2)})}
     ]," GB");
 
     var rt=t.runtime||{},bm=t.benchmark||{};
@@ -131,8 +131,9 @@ var Dashboard={
     if(sb){sb.innerHTML=
       this.kv("API host","127.0.0.1 (localhost only)")+
       this.kv("API port","8080")+
+      this.kv("Model port","8081")+
       this.kv("Refresh","5 s")+
-      this.kv("Mode","Read-only + model load");}
+      this.kv("Mode","Read-only + model load + chat");}
     if(diag){
       document.getElementById("diagBox").innerHTML=
         this.kv("Python",esc(diag.python||"—"))+

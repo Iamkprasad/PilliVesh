@@ -50,5 +50,13 @@ var API={
       var r=await fetch("/api/server/stop",{method:"POST"});
       return await r.json();
     }catch(e){return {success:false,error:String(e)}}
+  },
+  async chat(messages,opts){
+    try{
+      var r=await fetch("/api/chat",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(Object.assign({messages:messages},opts||{}))});
+      return await r.json();
+    }catch(e){return {success:false,error:String(e)}}
   }
 };

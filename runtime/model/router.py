@@ -201,7 +201,6 @@ def _spawn(model_path, ctx_size=4096):
         "--host", ROUTER_HOST,
         "--port", str(ROUTER_PORT),
         "--ctx-size", str(ctx_size),
-        "--no-webui",
         "-dev", "none",
         "--no-op-offload",
     ]

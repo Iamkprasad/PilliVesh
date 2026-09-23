@@ -3,6 +3,7 @@ runtime/**/*.db
 logs/*.jsonl
 results/*.json
 results/*.jsonl
+results/*.out
 models/*
 !models/.gitkeep
 

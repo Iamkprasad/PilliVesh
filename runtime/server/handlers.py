@@ -1,8 +1,9 @@
-"""Read-only data handlers for the Local AI Control Center.
+"""Local API handlers for the Local AI Control Center.
 
 Each function returns plain dicts/lists built from the existing
 runtime files. No business logic is duplicated; modules are reused
-where possible. All failures return structured errors to the caller.
+where possible. Failures return structured errors to the caller.
+Read endpoints are GET; chat/model ops are localhost POST only.
 """
 import json
 import sqlite3
@@ -300,6 +301,94 @@ def unload_model(model_id):
 def stop_router():
     from runtime.model import router as router_mod
     return router_mod.stop_router()
+
+
+def _coerce_int(value, default, lo, hi):
+    if value is None:
+        value = default
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        n = int(default)
+    return max(lo, min(n, hi))
+
+
+def _coerce_float(value, default, lo, hi):
+    if value is None:
+        value = default
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        n = float(default)
+    return max(lo, min(n, hi))
+
+
+def _clean_messages(messages):
+    if not isinstance(messages, list) or not messages:
+        raise ValueError("Missing messages")
+    if len(messages) > 100:
+        raise ValueError("Too many messages (max 100)")
+    cleaned = []
+    allowed = ("system", "user", "assistant")
+    for i, m in enumerate(messages):
+        if not isinstance(m, dict):
+            raise ValueError(f"messages[{i}] must be an object")
+        role = m.get("role")
+        content = m.get("content")
+        if role not in allowed:
+            raise ValueError(f"messages[{i}].role must be system|user|assistant")
+        if not isinstance(content, str):
+            raise ValueError(f"messages[{i}].content must be a string")
+        if len(content) > 32 * 1024:
+            raise ValueError(f"messages[{i}].content too long (max 32KB)")
+        cleaned.append({"role": role, "content": content})
+    return cleaned
+
+
+def _model_reachable(router_mod):
+    if router_mod.router_running():
+        return True
+    # State file can be stale if llama-server was started outside the router.
+    try:
+        return bool(router_mod._http_health())
+    except Exception:
+        return False
+
+
+def chat(messages, model=None, max_tokens=512, temperature=0.7):
+    """Proxy a chat completion to the resident llama-server on 8081."""
+    import urllib.error
+    import urllib.request
+    from runtime.model import router as router_mod
+
+    if not _model_reachable(router_mod):
+        raise ValueError(
+            "No model loaded. Go to More → Models and press Load first."
+        )
+    cleaned = _clean_messages(messages)
+    payload = {
+        "model": model or "local",
+        "messages": cleaned,
+        "max_tokens": _coerce_int(max_tokens, 512, 1, 2048),
+        "temperature": _coerce_float(temperature, 0.7, 0.0, 2.0),
+        "stream": False,
+    }
+    req = urllib.request.Request(
+        f"http://{router_mod.ROUTER_HOST}:{router_mod.ROUTER_PORT}"
+        f"/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json",
+                 "User-Agent": "PilliVesh/1.0"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:500]
+        raise ValueError(f"Model error ({e.code}): {detail}")
+    except Exception as e:
+        raise ValueError(f"Chat request failed: {e}")
 
 
 def free_ram():

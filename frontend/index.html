@@ -81,6 +81,25 @@
     </div>
   </section>
 
+  <!-- CHAT -->
+  <section id="view-chat" class="view">
+    <div class="panel">
+      <div class="panel-h">CHAT</div>
+      <div id="chatStatus" class="small">Checking model…</div>
+      <div class="menu" style="margin-top:8px">
+        <button id="openLlamaUiBtn">Open llama Web UI</button>
+        <button id="clearChatBtn">Clear chat</button>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="input-wrap" style="margin-top:8px">
+        <input id="chatInput" class="input" type="text" placeholder="type a message…" autocomplete="off">
+      </div>
+      <div class="menu" style="margin-top:6px">
+        <button id="chatSendBtn">Send</button>
+      </div>
+    </div>
+  </section>
+
   <!-- LOGS -->
   <section id="view-logs" class="view">
     <div class="panel">
@@ -120,8 +139,9 @@
       <div id="settingsBox" class="kv-grid">
         <div class="kv"><span class="k">API host</span><span class="v">127.0.0.1 (localhost only)</span></div>
         <div class="kv"><span class="k">API port</span><span class="v">8080</span></div>
+        <div class="kv"><span class="k">Model port</span><span class="v">8081</span></div>
         <div class="kv"><span class="k">Refresh</span><span class="v">5 s</span></div>
-        <div class="kv"><span class="k">Mode</span><span class="v">Read-only + model load</span></div>
+        <div class="kv"><span class="k">Mode</span><span class="v">Read-only + model load + chat</span></div>
       </div>
       <div class="ascii-rule">---------- THEME ----------</div>
       <div id="themeRow" class="theme-row">
@@ -139,6 +159,7 @@
 <nav class="tabbar">
   <button data-view="home" class="tab on">Home</button>
   <button data-view="runtime" class="tab">Runtime</button>
+  <button data-view="chat" class="tab">Chat</button>
   <button data-view="memory" class="tab">Memory</button>
   <button data-view="logs" class="tab">Logs</button>
   <button data-view="more" class="tab">More</button>

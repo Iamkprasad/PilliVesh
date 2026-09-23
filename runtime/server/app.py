@@ -3,10 +3,12 @@
 Serves:
   /                  -> frontend/index.html
   /css/*, /js/*, /assets/* (static)
-  /api/telemetry, /api/benchmark, /api/logs, /api/memory,
-  /api/skills, /api/tools, /api/tasks, /api/diagnostics
+  GET /api/telemetry, /api/benchmark, /api/logs, /api/memory,
+      /api/skills, /api/tools, /api/tasks, /api/diagnostics,
+      /api/models, /api/health
+  POST /api/chat and allow-listed model/RAM/stop actions
 
-Binds to 127.0.0.1 only. All API endpoints are read-only GET.
+Binds to 127.0.0.1 only. No auth, no shell, no remote control.
 """
 import json
 import mimetypes
@@ -83,6 +85,31 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/models/router/stop":
             try:
                 return self._send_json(ok(handlers.stop_router()))
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route == "/api/chat":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except Exception:
+                length = 0
+            if length <= 0 or length > 256 * 1024:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except Exception:
+                return self._send_json(fail("Bad request"), 400)
+            if not isinstance(body, dict):
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                result = handlers.chat(
+                    messages=body.get("messages"),
+                    model=body.get("model"),
+                    max_tokens=body.get("max_tokens", 512),
+                    temperature=body.get("temperature", 0.7),
+                )
+                return self._send_json(ok(result))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
             except Exception as e:
                 return self._send_json(fail(f"Internal error: {e}"), 500)
         if route in ("/api/models/download", "/api/models/load",

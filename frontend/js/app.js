@@ -1,4 +1,5 @@
 var currentView="home",logFilter="all",memTimer=null;
+var chatHistory=[],chatBusy=false;
 function setStatus(t,online){
   var dot=document.querySelector("#statusLine .dot"),txt=document.getElementById("statusText"),up=document.getElementById("updateLine");
   dot.className="dot "+(!t?"unknown":(!online?"bad":((t.runtime&&t.runtime.model_downloaded)?"ok":((t.gpu&&t.gpu.vulkan_available)?"ok":"warn"))));
@@ -145,6 +146,89 @@ async function runModelOp(op,id){
   refreshModels();
   if(op==="load"||op==="unload")refreshHome();
 }
+async function refreshChatStatus(){
+  var el=document.getElementById("chatStatus");
+  if(!el)return;
+  var r=await API.models();
+  if(!r.success){el.innerHTML="<span class='err-text'>Cannot check model status</span>";return}
+  var running=!!r.data.router_running;
+  var loaded=(r.data.loaded_ids||[])[0]||null;
+  if(running&&loaded){
+    el.innerHTML="<span class='ok-text'>● Model loaded: "+esc(loaded)+" — ready to chat</span>";
+  }else if(running){
+    el.innerHTML="<span class='tag warn'>Router up</span> but no model resident. Load one in More → Models.";
+  }else{
+    el.innerHTML="<span class='err-text'>No model loaded.</span> Go to <b>More → Models</b> and press <b>Load</b> first.";
+  }
+}
+function renderChat(){
+  var box=document.getElementById("chatMessages");
+  if(!box)return;
+  if(!chatHistory.length){
+    box.innerHTML="<div class='chat-empty'>No messages yet. Say hello.</div>";
+    return;
+  }
+  box.innerHTML=chatHistory.map(function(m){
+    var who=m.role==="user"?"You":(m.role==="assistant"?"Model":"System");
+    return "<div class='chat-msg "+esc(m.role)+"'><div class='who'>"+esc(who)+"</div><div>"+esc(m.content)+"</div></div>";
+  }).join("");
+  box.scrollTop=box.scrollHeight;
+}
+async function sendChat(){
+  if(chatBusy)return;
+  var input=document.getElementById("chatInput");
+  var btn=document.getElementById("chatSendBtn");
+  var text=(input.value||"").trim();
+  if(!text)return;
+  input.value="";
+  chatHistory.push({role:"user",content:text});
+  if(chatHistory.length>100)chatHistory=chatHistory.slice(-100);
+  renderChat();
+  chatBusy=true;
+  if(btn){btn.disabled=true;btn.textContent="Thinking…"}
+  var box=document.getElementById("chatMessages");
+  if(box){
+    var t=document.createElement("div");
+    t.className="chat-msg assistant thinking";
+    t.id="chatThinking";
+    t.innerHTML="<div class='who'>Model</div><div>generating…</div>";
+    box.appendChild(t);
+    box.scrollTop=box.scrollHeight;
+  }
+  try{
+    var r=await API.chat(chatHistory.slice(-20),{max_tokens:512,temperature:0.7});
+    if(!r||!r.success){
+      var err=(r&&r.error)||"request failed";
+      chatHistory.push({role:"assistant",content:"[error] "+err});
+    }else{
+      var d=r.data||{};
+      var choice=(d.choices||[])[0]||{};
+      var msg=(choice.message&&choice.message.content)||"";
+      if(!msg)msg="[empty response]";
+      chatHistory.push({role:"assistant",content:msg});
+    }
+  }catch(e){
+    chatHistory.push({role:"assistant",content:"[error] "+String(e)});
+  }finally{
+    var think=document.getElementById("chatThinking");
+    if(think)think.remove();
+    if(chatHistory.length>100)chatHistory=chatHistory.slice(-100);
+    renderChat();
+    chatBusy=false;
+    if(btn){btn.disabled=false;btn.textContent="Send"}
+  }
+}
+function openLlamaUI(){
+  var url="http://127.0.0.1:8081";
+  API.models().then(function(r){
+    if(r.success&&r.data.router_running){
+      var w=window.open(url,"_blank");
+      if(w)w.opener=null;
+    }else{
+      alert("No model loaded.\n\nGo to More → Models and press Load first, then try again.");
+    }
+  });
+}
 async function exportReport(){
   var t=await API.telemetry(),d=await API.diagnostics();
   var L=[];
@@ -204,6 +288,7 @@ function show(v){
   if(v==="memory")refreshMemory(document.getElementById("memSearch").value);
   if(v==="more")refreshMore();
   if(v==="runtime")refreshHome();
+  if(v==="chat")refreshChatStatus();
 }
 document.querySelectorAll(".tab").forEach(function(b){b.onclick=function(){show(b.getAttribute("data-view"))}});
 document.querySelectorAll("[data-goto]").forEach(function(b){b.onclick=function(){
@@ -217,6 +302,17 @@ document.getElementById("memSearch").addEventListener("input",function(e){
   clearTimeout(memTimer);memTimer=setTimeout(function(){refreshMemory(e.target.value)},350)});
 document.getElementById("exportBtn").onclick=function(){exportReport()};
 document.getElementById("freeRamBtn").onclick=function(){freeRam()};
+document.getElementById("chatSendBtn").onclick=function(){sendChat()};
+document.getElementById("openLlamaUiBtn").onclick=function(){openLlamaUI()};
+document.getElementById("clearChatBtn").onclick=function(){
+  if(!chatHistory.length)return;
+  if(!confirm("Clear the conversation?"))return;
+  chatHistory=[];renderChat();
+};
+document.getElementById("chatInput").addEventListener("keydown",function(e){
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}
+});
+renderChat();
 document.querySelectorAll("#themeRow .theme-chip").forEach(function(b){
   b.onclick=function(){applyTheme(b.getAttribute("data-theme"))};
 });

@@ -3,9 +3,10 @@
 My personal, portable, local-first AI lab that lives entirely on my phone.
 
 PilliVesh is a small local AI runtime (memory, skills, tools, context, model
-adapter, telemetry, benchmarks) plus a mobile-first control-center dashboard.
-No cloud, no accounts, no build step. It runs on Termux/Android and is designed
-to be cloned onto another phone and work with two scripts.
+adapter, telemetry, benchmarks) behind a WhatsApp-style chat UI. Chat with a
+local GGUF model or a cloud provider from the same screen; API keys stay on the
+device. No accounts, no build step. It runs on Termux/Android and is designed to
+be cloned onto another phone and work with two scripts.
 
 ## Quick start
 
@@ -16,9 +17,9 @@ to be cloned onto another phone and work with two scripts.
 | Android + Termux (or any Linux) | Primary target is a phone; works on tablet/desktop Linux too | Yes |
 | Python 3.8+       | Stdlib only — zero pip packages to install                    | Yes |
 | `git`             | To clone the repo (`pkg install git` on Termux)                | Yes |
-| A browser         | Any modern mobile or desktop browser for the dashboard         | Yes |
-| `llama-cli` (llama.cpp, Vulkan build) | GPU detection, version detection, benchmarks | Recommended — without it the dashboard still runs but shows GPU/model as unavailable |
-| Free RAM ~2 GB+   | For running small local models; the dashboard itself needs almost nothing | For models only |
+| A browser         | Any modern mobile or desktop browser for the chat UI           | Yes |
+| `llama-cli` (llama.cpp, Vulkan build) | GPU detection, version detection, benchmarks | Recommended — without it the UI still runs but shows GPU/model as unavailable |
+| Free RAM ~2 GB+   | For running small local models; the UI itself needs almost nothing | For models only |
 | Disk space        | ~5 MB for the repo; +1–4 GB free if you download a `.gguf` model | Model space as needed |
 
 ### Install & run
@@ -39,58 +40,78 @@ Stop it with `Ctrl+C`, or from another shell:
 
 ## What you get
 
-- **Home** — CPU, RAM/swap with usage bars, GPU (Adreno/Vulkan), grouped
-  thermals (CPU/GPU/Battery/Skin/DDR/NPU), runtime summary, benchmark status.
-- **Runtime** — backend, `llama.cpp` version (auto-detected, never hard-coded),
-  model state, raw GPU/Vulkan output, diagnostics.
-- **Memory** — searchable SQLite-backed assistant memory
-  (procedural / semantic / episodic / project).
-- **Logs** — recent runtime events with type filters; click a row for details.
-- **More** — skills (reads each skill's `SKILL.md`), registered tools, project
-  tasks, model downloads, diagnostics, and server settings.
-- **Inbuilt graphs** — dependency-free SVG charts (no chart library): CPU/GPU/
-  battery thermals and RAM history on Home, benchmark history once a model
-  runs. History accumulates in `results/telemetry_history.jsonl` and
-  `results/benchmark_history.jsonl` automatically.
+- **Chat-first UI** — WhatsApp-style chat list, bubbles, date chips, delivery
+  ticks, search, copy, rename/clear/export/delete, and a mobile list/chat
+  switch. Chats live in `localStorage`; nothing leaves the device.
+- **Overview dashboard** — live RAM/available memory, the resident model and
+  quant, the latest light-probe speed, and quick actions for a benchmark, a
+  new chat, or model management, all above the chat search.
+- **Control center** — Providers, Harness, Models, System, and Benchmarks in
+  one drawer, reachable from the sidebar or the header.
+- **Provider picker** — switch between the built-in local model and any saved
+  cloud provider per chat. The header shows the active model and whether it is
+  ready.
+- **Cloud providers** — OpenAI-compatible APIs (OpenAI, OpenRouter, DeepSeek,
+  Groq, Mistral, custom), Anthropic, and Google Gemini. Add a key in
+  Control center → Providers; the local server proxies the request.
+- **Local models** — download, load, unload, and benchmark phone-sized GGUF
+  models in Control center → Models. One model is resident at a time; loading
+  is lazy so idle battery drain is zero.
+- **Harness controls** — system prompt, temperature, max tokens, and a
+  read-only tool toggle (device inspection) in Control center → Harness.
+- **System panel** — collapsible Device, Runtime controls, Tasks, Logs, and
+  Memory cards in Control center → System: CPU/RAM/GPU telemetry, task
+  counts and details, grouped/searchable event logs, searchable memory,
+  free-RAM cleanup, and a stop-server button.
+- **Streaming replies** — local and cloud responses stream token by token over
+  NDJSON; the red button cancels a generation.
+- **Light/dark theme** — saved in `localStorage` and applied before first paint.
 - **PWA-ready** — `manifest.json` + icon included; use your browser's
   "Add to Home screen" to install PilliVesh like a native app.
-- **Export diagnostics** — one tap in Diagnostics copies (or downloads) a
-  plain-text report of CPU/RAM/GPU/model state for sharing or debugging.
-- **Free up RAM** — Home button runs a fixed cleanup: flush dirty pages,
-  release page cache on large `.gguf` files, reap zombies, kill stale
-  `llama-cli` leftovers, then best-effort `am kill-all` (background apps only).
-  Each step reports success/failure honestly — stock Android without root
-  cannot drop the global page cache.
-- **Load / Unload model** — More → Models shows `[ LOAD ]` / `[ UNLOAD ]`
-  (and a `[RESIDENT]` chip). Load spawns a lazy pure-CPU `llama-server` only
-  when you ask; Unload kills it so idle battery drain is zero. One model
-  resident at a time; loading another swaps cleanly. RAM is checked against
-  each catalog entry's `min_ram_mb` first.
-- **Chat** — Chat tab talks to the resident model through `POST /api/chat`
-  (proxied to `llama-server` on `127.0.0.1:8081`). Tokens **stream live**
-  (NDJSON), messages show role + timestamp, hover to copy, animated typing
-  dots until the first token. Clear history or open the llama Web UI from the
-  toolbar. Status line tells you when nothing is loaded.
+- **Free up RAM** — a fixed cleanup: flush dirty pages, release page cache on
+  large `.gguf` files, reap zombies, kill stale `llama-cli` leftovers, then
+  best-effort `am kill-all` (background apps only). Each step reports
+  success/failure honestly — stock Android without root cannot drop the global
+  page cache.
 - **Model efficiency / TPS** — while a model is resident the server runs a
   **light probe** every ~30s (`POST /v1/chat/completions`, up to 48 tokens)
   and records prompt/generation tok/s + latency into `results/benchmark_*`
-  and `results/model_stats/<id>.jsonl`. Home → MODEL BENCHMARK shows the
-  latest numbers and a live chart; **Run benchmark** forces a sample. More →
-  Models shows avg/min/max tok/s, run count, and an expandable table +
-  sparkline per model. More → **Model Stats** is the side-by-side
-  comparison panel.
-- **Color themes** — More → Settings picks Green / Pink / Yellow / Blue /
-  Red phosphor themes (Terminal CLI style). Choice persists in
-  `localStorage` and applies before first paint.
+  and `results/model_stats/<id>.jsonl`. **Run light benchmark** forces a
+  sample; the Benchmarks tab shows readiness, the real result, history, and a
+  comparison against the previous run of the same model. The 48-token probe
+  is a quick health check, not a full benchmark suite, and PilliVesh never
+  loads or switches a model just to run it.
 - **Live refresh** — telemetry is sampled on the server every 5 seconds
-  (daemon thread) and the UI re-polls every 5 seconds; if a source
-  disappears the UI shows an unavailable state instead of crashing.
-- **Auto-load model** — on dashboard start the first installed catalog model
-  is loaded in the background (disable with `AI_LAB_AUTOLOAD=0`) so chat and
-  the opencode local provider work without a manual Load.
+  (daemon thread); if a source disappears the UI shows an unavailable state
+  instead of crashing.
+- **Auto-load model** — on start the first installed catalog model is loaded in
+  the background (disable with `AI_LAB_AUTOLOAD=0`) so chat and the opencode
+  local provider work without a manual Load.
 
 Everything displayed is real data from the local runtime. When there is no
 model, no benchmark, or no sensor, the UI says so honestly.
+
+## Cloud providers & API keys
+
+Open **Control center → Providers**, choose a preset (or fill in a custom
+provider), and paste the API key. Supported wire formats:
+
+- `openai` — OpenAI, OpenRouter, DeepSeek, Groq, Mistral, or any compatible
+  endpoint.
+- `anthropic` — Anthropic Messages API.
+- `google` — Google Gemini `generateContent` API.
+
+Keys are stored server-side in `results/providers.json` with mode `0600`. The
+browser only receives a masked hint (`has_key`, `key_hint`); the key itself is
+never returned to the browser and never embedded in page JavaScript. Chat
+requests are proxied by the local server, which attaches the key. **Test**
+makes one small request and reports the provider's own error message. **Delete**
+removes the provider and its key. The radio button selects the default provider
+for new chats; each chat can override it in the header picker.
+
+`results/` is git-ignored, so keys are not committed accidentally. The server
+binds to `127.0.0.1` and rejects cross-origin POSTs plus non-local Host headers
+because it holds those keys; do not expose the port to your network.
 
 ## Using the local model in opencode
 
@@ -99,30 +120,31 @@ OpenAI-compatible provider named **`llamacpp`** pointing at the resident
 server:
 
 - baseURL: `http://127.0.0.1:8081/v1` (model port **8081**, not the
-  dashboard’s 8080)
+  UI server’s 8080)
 - default model: `llamacpp/smollm2-360m` (tool calling enabled)
-- llama-server must be running — auto-load on dashboard start, or press
-  **Load** in More → Models
+- llama-server must be running — auto-load on startup, or press **Load** in
+  Control center → Models
 
 In the opencode TUI, pick the model with `/models` → **LLaMA.cpp (local)**
 if the session is on a cloud provider. Only one model is resident at a time.
 
 ## Local API (localhost only)
 
-The dashboard talks to a tiny stdlib HTTP server (`runtime/server/`):
+The UI talks to a tiny stdlib HTTP server (`runtime/server/`):
 
 | Endpoint            | Source                                  |
 |---------------------|-----------------------------------------|
 | `/api/telemetry`    | `results/telemetry_latest.json`         |
 | `/api/benchmark`    | `results/benchmark_latest.json` + history |
 | `/api/model-stats`  | summaries from `results/model_stats/`   |
-| `/api/logs`         | `logs/runtime.jsonl`                    |
-| `/api/memory`       | `runtime/memory/memory.db`              |
+| `/api/logs`         | `logs/runtime.jsonl` (`type`, `q`, `offset`, `limit`) |
+| `/api/memory`       | `runtime/memory/memory.db` (created on first read) |
 | `/api/skills`       | `runtime/skills/*/SKILL.md`             |
 | `/api/tools`        | tool registry (`runtime/tools/`)        |
-| `/api/tasks`        | `runtime/state/state.db`                |
+| `/api/tasks`        | `runtime/state/state.db` + status counts |
 | `/api/diagnostics`  | profile, `models/`, file presence       |
 | `/api/models`       | catalog + installed + download + loaded + per-model stats |
+| `/api/providers`    | public provider list, presets, local model state, active id |
 | `/api/health`       | liveness probe                          |
 
 Write endpoints (POST, still localhost-only): `/api/models/download`
@@ -130,14 +152,21 @@ Write endpoints (POST, still localhost-only): `/api/models/download`
 battery-lazy `llama-server` for one catalog model — RAM-gated, swaps any
 resident model; fires a benchmark probe on success), `/api/models/unload`
 (kills the process; stops the router when the last model leaves),
-`/api/models/router/stop` (force-kill), `/api/chat` (OpenAI-style messages
-proxied to the resident model on port 8081 — pass `"stream": true` for an
-NDJSON token stream; fails clearly when nothing is loaded),
-`/api/benchmark/run` (light probe vs the resident model; optional `{"id"}`),
-`/api/memory/free` (best-effort RAM cleanup — fixed internal steps only,
-no shell input), and `/api/server/stop` (shuts the dashboard down).
-There is deliberately no remote control, no auth, and no general
-shell-execution endpoint. It binds to `127.0.0.1` only.
+`/api/models/router/stop` (force-kill), `/api/chat` (OpenAI-style messages;
+pass `"provider": "<id>"` to use a saved provider, or `"stream": true` for an
+NDJSON token stream), `/api/providers` (`{"action": "save" | "delete" |
+"active" | "test"}` — the key is accepted only on `save`), `/api/benchmark/run`
+(light probe vs the resident model; optional `{"id"}`), `/api/memory/free`
+(best-effort RAM cleanup — fixed internal steps only, no shell input), and
+`/api/server/stop` (shuts the UI server down). Tasks have create/status/run/
+result endpoints under `/api/tasks/`.
+
+There is deliberately no remote control, no accounts, and no general
+shell-execution endpoint. It binds to `127.0.0.1` only, rejects
+cross-origin POSTs, and refuses non-local Host headers. Skills, tools,
+diagnostics, and model stats remain
+readable over the API even though the chat UI focuses on providers, models,
+tasks, logs, and memory.
 
 Model load is intentionally lazy: nothing runs in the background until you
 press **Load**, and **Unload** (or swapping models) kills `llama-server` so
@@ -157,14 +186,14 @@ python3 -m runtime.orchestrator           # run the runtime once (system_info de
 ./bin/system-info.sh                      # full device report
 ```
 
-Drop a `.gguf` model into `models/` and the runtime, benchmark, and dashboard
+Drop a `.gguf` model into `models/` and the runtime, benchmark, and chat UI
 pick it up automatically (`model_downloaded` is detected, not configured).
 
 ### Models (curated, phone-sized)
 
 No hunting for download links — PilliVesh ships an allow-listed catalog
 (`runtime/model/catalog.py`, all entries verified upstream). Install from the
-dashboard's More → Models screen, or from the shell:
+Control center → Models screen, or from the shell:
 
 ```bash
 python3 -m runtime.model.downloader smollm2-360m-q8   # ~386 MB, smallest first
@@ -179,7 +208,7 @@ python3 -m runtime.model.downloader --status          # progress / state
 
 Downloads stream to `models/*.part`, are size-verified, then moved into place;
 only catalog ids are accepted (arbitrary URLs are refused). After a download
-the runtime profile refreshes and the dashboard flips to "Installed".
+the runtime profile refreshes and the UI flips to "Installed".
 
 ### Skills
 
@@ -192,11 +221,11 @@ benchmarking, git-github, and model-ops. Keyword routing lives in
 
 ```text
 .
-├── frontend/            # dashboard (plain HTML/CSS/JS, no framework)
+├── frontend/            # chat UI (plain HTML/CSS/JS, no framework)
 │   ├── index.html
 │   ├── css/app.css
-│   └── js/{api,state,utils,dashboard,charts,app}.js
-├── runtime/             # the AI runtime the dashboard observes
+│   └── js/{api,store,settings,app,theme}.js
+├── runtime/             # the AI runtime behind the UI
 │   ├── server/          # localhost API + static file server
 │   ├── memory/          # SQLite memory (db is local-only, git-ignored)
 │   ├── state/           # SQLite tasks (local-only, git-ignored)
@@ -211,6 +240,10 @@ benchmarking, git-github, and model-ops. Keyword routing lives in
 ├── logs/                # runtime.jsonl event log (git-ignored)
 ├── models/              # your .gguf files live here (git-ignored)
 ├── bin/                 # device/bench shell helpers
+├── tests/               # stdlib unittest suite
+├── docs/                # brand reference; docs/sessions/ archives past handoffs
+├── AGENTS.md            # agent rules + session handoff protocol
+├── SESSION-SUMMARY.md   # latest session handoff (read this first)
 ├── run-dashboard.sh
 └── stop-dashboard.sh
 ```
@@ -226,7 +259,7 @@ benchmarking, git-github, and model-ops. Keyword routing lives in
 
 ## Status
 
-Personal project, built incrementally on-device. The dashboard is local-only:
-read views, allow-listed model download/load, RAM cleanup, and chat against a
-resident model — agents, remote access, and tuning controls are intentionally
-not included.
+Personal project, built incrementally on-device. The UI and API are local-only:
+allow-listed model download/load, RAM cleanup, and chat against a resident model
+or a saved cloud provider. Remote access, accounts, and general shell execution
+are intentionally not included.

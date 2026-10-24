@@ -48,8 +48,13 @@ def status():
 
 
 def installed():
-    """Actually installed model files (.gguf only; placeholders excluded)."""
+    """Actually installed model files (.gguf only; placeholders excluded).
+
+    Includes both MODELS_DIR files and locally discovered models from
+    approved directories.
+    """
     found = []
+    seen = set()
     try:
         if MODELS_DIR.exists():
             for p in sorted(MODELS_DIR.iterdir()):
@@ -58,7 +63,19 @@ def installed():
                         size = p.stat().st_size
                     except Exception:
                         size = None
-                    found.append({"name": p.name, "size_bytes": size})
+                    if p.name not in seen:
+                        seen.add(p.name)
+                        found.append({"name": p.name, "size_bytes": size})
+    except Exception:
+        pass
+    # Include locally discovered models from other approved dirs.
+    try:
+        from runtime.model.catalog import _discover_local_models
+        for entry in _discover_local_models():
+            if entry["filename"] not in seen:
+                seen.add(entry["filename"])
+                found.append({"name": entry["filename"],
+                              "size_bytes": entry["size_mb"] * 1024 * 1024})
     except Exception:
         pass
     return found
@@ -93,6 +110,8 @@ def download(model_id, dest_dir=None):
     from runtime.model.catalog import get_model
 
     entry = get_model(model_id)  # allow-list gate; raises for unknown ids
+    if entry.get("local"):
+        raise ValueError("Local models cannot be downloaded")
     target_dir = Path(dest_dir) if dest_dir else MODELS_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
     final = target_dir / entry["filename"]
@@ -153,7 +172,9 @@ def download(model_id, dest_dir=None):
 def download_async(model_id):
     """Start a background download thread. Raises if busy/unknown."""
     from runtime.model.catalog import get_model
-    get_model(model_id)  # validate early so API can return 400 fast
+    entry = get_model(model_id)  # validate early so API can return 400 fast
+    if entry.get("local"):
+        raise ValueError("Local models cannot be downloaded")
     with _lock:
         if _active["model_id"] is not None:
             raise ValueError("Another download is already running")

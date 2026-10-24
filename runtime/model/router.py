@@ -262,8 +262,13 @@ def load_model(model_id, swap=True):
     from runtime.model.runtime_config import available_ram_mb
 
     entry = get_model(model_id)  # allow-list gate
-    final = MODELS_DIR / entry["filename"]
-    if not final.exists():
+    # Local models carry an explicit resolved path; catalog models use
+    # MODELS_DIR / filename.
+    if entry.get("local") and entry.get("path"):
+        final = Path(entry["path"])
+    else:
+        final = MODELS_DIR / entry["filename"]
+    if not final.exists() or not final.is_file():
         raise ValueError(f"Model file not installed: {entry['filename']}")
 
     free_mb = available_ram_mb()

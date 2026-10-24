@@ -9,6 +9,22 @@ class ToolExecutor:
     def __init__(self):
         self.registry = create_registry()
 
+    def _validate_arguments(self, tool_name, arguments):
+        """Strict argument validation. Returns (ok, error_message)."""
+        if not isinstance(arguments, dict):
+            return False, "arguments must be an object"
+
+        tool = self.registry.get(tool_name)
+        if tool is None:
+            return False, f"Unknown tool: {tool_name}"
+
+        # system_info takes no arguments — strict allow-list.
+        if tool_name == "system_info":
+            if arguments:
+                return False, "system_info takes no arguments"
+
+        return True, None
+
     def execute(self, model_output):
         request = parse_tool_request(model_output)
 
@@ -18,13 +34,13 @@ class ToolExecutor:
                 "message": "No valid tool request.",
             }
 
-        tool = self.registry.get(request.tool)
+        ok, error = self._validate_arguments(request.tool, request.arguments)
+        if not ok:
+            return {"success": False, "tool": request.tool, "message": error}
 
+        tool = self.registry.get(request.tool)
         if not tool:
-            return {
-                "success": False,
-                "message": f"Unknown tool: {request.tool}",
-            }
+            return {"success": False, "tool": request.tool, "message": f"Unknown tool: {request.tool}"}
 
         try:
             output = tool.handler()

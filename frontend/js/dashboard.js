@@ -49,37 +49,30 @@ var Dashboard={
   },
   renderHome:function(t,b){
     var mem=(t.system&&t.system.memory)||{};
-    var hw="";
-    hw+=this.kv("CPU",(t.system&&t.system.cpu_cores!=null?t.system.cpu_cores+" Cores":"Not available"));
-    hw+=this.kv("RAM",mem.total_mb!=null?(gb(mem.used_mb)+" / "+gb(mem.total_mb)):"Not available");
-    hw+=this.kv("Available",mem.available_mb!=null?gb(mem.available_mb):"—");
-    hw+=this.kv("SWAP",mem.swap_total_mb!=null?(gb(mem.swap_used_mb)+" / "+gb(mem.swap_total_mb)):"Not available");
-    hw+=this.kv("GPU",t.gpu&&t.gpu.device?esc(shortGpu(t.gpu.device)):"Not installed");
-    hw+=this.kv("Vulkan",t.gpu?(t.gpu.vulkan_available?"Available":"Not available"):"—");
-    document.getElementById("hwGrid").innerHTML=hw;
-    var rp=pct(mem.used_mb,mem.total_mb),sp=pct(mem.swap_used_mb,mem.swap_total_mb);
-    document.getElementById("ramBar").style.width=rp+"%";
-    document.getElementById("swapBar").style.width=sp+"%";
-    document.getElementById("ramText").textContent=mem.total_mb!=null?(rp+"% · Avail "+gb(mem.available_mb)):"Not available";
-    document.getElementById("swapText").textContent=mem.swap_total_mb!=null?(sp+"%"):"Not available";
+    var cpuEl=document.getElementById("cpuVal");
+    var ramEl=document.getElementById("ramVal");
+    var ramSub=document.getElementById("ramSub");
+    var gpuEl=document.getElementById("gpuVal");
+    var gpuSub=document.getElementById("gpuSub");
+    var modelEl=document.getElementById("modelVal");
+    var modelSub=document.getElementById("modelSub");
+    var ramBar=document.getElementById("ramBar");
+    if(cpuEl)cpuEl.textContent=(t.system&&t.system.cpu_cores!=null?t.system.cpu_cores:"—");
+    if(ramEl)ramEl.textContent=mem.total_mb!=null?(gb(mem.used_mb||0)+" / "+gb(mem.total_mb)):"—";
+    if(ramSub)ramSub.textContent=mem.available_mb!=null?(gb(mem.available_mb)+" available"):"—";
+    if(ramBar)ramBar.style.width=(mem.total_mb?Math.round((mem.used_mb||0)/mem.total_mb*100):0)+"%";
+    if(gpuEl)gpuEl.textContent=(t.gpu&&t.gpu.device?shortGpu(t.gpu.device):"—");
+    if(gpuSub)gpuSub.textContent=(t.gpu&&t.gpu.vulkan_available?"Vulkan":"—");
+    if(modelEl)modelEl.textContent=(t.runtime&&t.runtime.model_downloaded?"Installed":"Not installed");
+    if(modelSub)modelSub.textContent=(t.runtime&&t.runtime.llama_version||"—");
 
-    var temps=(t.system&&t.system.temperatures_c)||{};
-    var th=this.thermalMap.map(function(g){
-      var v=Dashboard.pickTemp(temps,g[1]);
-      return Dashboard.kv(g[0],v==null?"—":v+"°C");
-    }).join("");
-    document.getElementById("thermGrid").innerHTML=th||Dashboard.kv("Thermals","Not available");
-    var hist=t.history||[];
-    function col(key,fn){return hist.map(function(h){var v=h[key];return v==null?null:fn(v)})}
-    Charts.multi(document.getElementById("thermChart"),[
-      {name:"CPU",color:"var(--secondary)",values:col("cpu",function(v){return v})},
-      {name:"GPU",color:"var(--alt)",values:col("gpu",function(v){return v})},
-      {name:"Batt",color:"var(--primary)",values:col("battery",function(v){return v})}
-    ],"°C");
-    Charts.multi(document.getElementById("ramChart"),[
-      {name:"Used",color:"var(--primary)",values:col("ram_used_mb",function(v){return +(v/1024).toFixed(2)})},
-      {name:"Total",color:"var(--muted-text)",values:col("ram_total_mb",function(v){return +(v/1024).toFixed(2)})}
-    ]," GB");
+    document.getElementById("hwGrid").innerHTML=
+      this.kv("CPU",(t.system&&t.system.cpu_cores!=null?t.system.cpu_cores+" Cores":"Not available"))+
+      this.kv("RAM",mem.total_mb!=null?(gb(mem.used_mb)+" / "+gb(mem.total_mb)):"Not available")+
+      this.kv("Available",mem.available_mb!=null?gb(mem.available_mb):"—")+
+      this.kv("SWAP",mem.swap_total_mb!=null?(gb(mem.swap_used_mb)+" / "+gb(mem.swap_total_mb)):"Not available")+
+      this.kv("GPU",t.gpu&&t.gpu.device?esc(shortGpu(t.gpu.device)):"Not installed")+
+      this.kv("Vulkan",t.gpu?(t.gpu.vulkan_available?"Available":"Not available"):"—");
 
     var rt=t.runtime||{},bm=t.benchmark||{};
     var ver=(rt.llama_version||"Not available");

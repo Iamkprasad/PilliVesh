@@ -3,7 +3,7 @@ set -e
 LAB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOST="${AI_LAB_HOST:-127.0.0.1}"
 PORT="${AI_LAB_PORT:-8080}"
-echo "LOCAL AI CONTROL CENTER"
+echo "PILLIVESH CHAT HARNESS"
 echo "Lab: $LAB"
 command -v python3 >/dev/null || { echo "python3 not found"; exit 1; }
 for f in results/telemetry_latest.json results/benchmark_latest.json logs/runtime.jsonl; do

@@ -7,6 +7,14 @@ from runtime.execution import ExecutionResult
 from runtime.verifier import verify
 
 
+def _log_event(event, data):
+    try:
+        from runtime.monitor.monitor import log_event
+        log_event(event, data)
+    except Exception:
+        pass
+
+
 class Orchestrator:
 
     def __init__(self):
@@ -32,14 +40,19 @@ class Orchestrator:
         tool = self.tools.get(tool_name)
 
         if not tool:
+            _log_event("tool_not_found", {"tool": tool_name})
             return ExecutionResult(
                 success=False,
                 error=f"Tool not found: {tool_name}",
             )
 
+        # Log the tool name only; never the task string or other user content.
+        _log_event("tool_start", {"tool": tool_name})
+
         try:
             output = tool.handler()
 
+            _log_event("tool_success", {"tool": tool_name})
             return ExecutionResult(
                 success=True,
                 output=output,
@@ -47,6 +60,7 @@ class Orchestrator:
             )
 
         except Exception as e:
+            _log_event("tool_failure", {"tool": tool_name, "error": str(e)})
             return ExecutionResult(
                 success=False,
                 error=str(e),

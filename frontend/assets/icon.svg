@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0a0a0a"/>
-  <rect x="32" y="32" width="448" height="448" fill="none" stroke="#1f521f" stroke-width="8"/>
-  <text x="64" y="140" font-family="monospace" font-size="72" font-weight="700" fill="#33ff00">$</text>
-  <rect x="64" y="180" width="384" height="8" fill="#1f521f"/>
-  <rect x="64" y="220" width="280" height="24" fill="#33ff00"/>
-  <rect x="64" y="264" width="340" height="24" fill="#33ff00" opacity="0.7"/>
-  <rect x="64" y="308" width="200" height="24" fill="#33ff00" opacity="0.45"/>
-  <rect x="64" y="372" width="24" height="48" fill="#33ff00"/>
-  <rect x="100" y="388" width="180" height="16" fill="#ffb000"/>
-  <text x="64" y="470" font-family="monospace" font-size="36" fill="#1f521f">PILLIVESH</text>
+  <rect width="512" height="512" rx="120" fill="#FF8A00"/>
+  <g fill="#1F1F1F">
+    <ellipse cx="161" cy="205" rx="43" ry="55" transform="rotate(-24 161 205)"/>
+    <ellipse cx="230" cy="167" rx="43" ry="57" transform="rotate(-7 230 167)"/>
+    <ellipse cx="302" cy="176" rx="43" ry="57" transform="rotate(12 302 176)"/>
+    <ellipse cx="365" cy="232" rx="42" ry="54" transform="rotate(30 365 232)"/>
+    <path d="M256 258c61 0 112 47 112 104 0 45-36 76-80 60-21-8-40-12-54-2-38 26-90-3-90-62 0-56 51-100 112-100Z"/>
+  </g>
+  <g fill="#FFF6E6">
+    <circle cx="161" cy="205" r="13"/>
+    <circle cx="230" cy="167" r="13"/>
+    <circle cx="302" cy="176" r="13"/>
+    <circle cx="365" cy="232" r="13"/>
+  </g>
 </svg>

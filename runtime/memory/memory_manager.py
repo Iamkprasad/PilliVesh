@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import re
 import math
@@ -7,9 +8,33 @@ from runtime.memory.config import MEMORY_WEIGHTS, TYPE_BONUS
 
 DB = Path(__file__).parent / "memory.db"
 
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    source TEXT,
+    importance REAL NOT NULL DEFAULT 0.5,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
 
 def connect():
-    return sqlite3.connect(DB)
+    DB.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(DB)
+    db.execute(SCHEMA)
+    try:
+        os.chmod(DB, 0o600)
+    except OSError:
+        pass
+    return db
+
+
+def init_schema():
+    """Create the memory database/table if missing. Idempotent."""
+    with connect() as db:
+        db.commit()
 
 
 def remember(memory_type, content, source=None, importance=0.5):

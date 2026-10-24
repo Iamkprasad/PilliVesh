@@ -21,6 +21,7 @@ import mimetypes
 import os
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -48,7 +49,7 @@ def fail(message):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "AILab/1.0"
+    server_version = "PilliVesh/1.0"
 
     def log_message(self, fmt, *args):
         pass  # keep Termux output quiet; errors go to JSON
@@ -58,7 +59,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         self.wfile.write(body)
 
@@ -73,12 +77,175 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype or "application/octet-stream")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; "
+            "style-src 'self' 'unsafe-inline'; script-src 'self'; "
+            "connect-src 'self'",
+        )
         self.end_headers()
         self.wfile.write(data)
+
+    def _host_ok(self):
+        """Reject DNS-rebinding hosts when bound to loopback only."""
+        bind_host = str(self.server.server_address[0])
+        if bind_host not in ("127.0.0.1", "::1", "localhost"):
+            return True
+        host = (self.headers.get("Host") or "").strip().lower()
+        if host.startswith("["):
+            name = host.split("]")[0] + "]"
+        else:
+            name = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+        return name in ("127.0.0.1", "localhost", "[::1]", "::1")
+
+    def _same_origin(self):
+        """Reject cross-origin state changes (protects stored API keys)."""
+        host = (self.headers.get("Host") or "").strip().lower()
+        origin = (self.headers.get("Origin") or "").strip()
+        if not origin:
+            return True
+        parsed = urlparse(origin)
+        return parsed.netloc.lower() == host
+
+    def _read_json_body(self, max_bytes=4096):
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except Exception:
+            length = 0
+        if length <= 0 or length > max_bytes:
+            raise ValueError("Bad request")
+        try:
+            body = json.loads(self.rfile.read(length).decode("utf-8"))
+        except Exception:
+            raise ValueError("Bad request")
+        if not isinstance(body, dict):
+            raise ValueError("Bad request")
+        return body
 
     def do_POST(self):
         parsed = urlparse(self.path)
         route = parsed.path.rstrip("/") or "/"
+        if not self._host_ok():
+            return self._send_json(fail("Invalid host"), 403)
+        if not self._same_origin():
+            return self._send_json(fail("Cross-origin request refused"), 403)
+        if route == "/api/providers":
+            try:
+                body = self._read_json_body(32 * 1024)
+            except ValueError:
+                return self._send_json(fail("Bad request"), 400)
+            action = body.get("action")
+            try:
+                if action == "save":
+                    payload = {k: body.get(k) for k in (
+                        "id", "name", "type", "base_url", "model", "api_key",
+                    )}
+                    return self._send_json(ok(handlers.save_provider(payload)))
+                if action == "delete":
+                    return self._send_json(ok(handlers.delete_provider(
+                        body.get("id"))))
+                if action == "active":
+                    return self._send_json(ok(handlers.set_active_provider(
+                        body.get("id"))))
+                if action == "test":
+                    return self._send_json(ok(handlers.test_provider(
+                        body.get("id"))))
+                return self._send_json(fail("Unknown action"), 400)
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route == "/api/tasks/create":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except Exception:
+                length = 0
+            if length <= 0 or length > 4096:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except Exception:
+                return self._send_json(fail("Bad request"), 400)
+            if not isinstance(body, dict):
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                result = handlers.create_task(
+                    project=body.get("project"),
+                    title=body.get("title"),
+                    priority=body.get("priority", 5),
+                    notes=body.get("notes", ""),
+                )
+                return self._send_json(ok(result))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route == "/api/tasks/status":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except Exception:
+                length = 0
+            if length <= 0 or length > 1024:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except Exception:
+                return self._send_json(fail("Bad request"), 400)
+            if not isinstance(body, dict):
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                result = handlers.update_task_status(
+                    task_id=body.get("id"),
+                    status=body.get("status"),
+                )
+                return self._send_json(ok(result))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route == "/api/tasks/run":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except Exception:
+                length = 0
+            if length <= 0 or length > 1024:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except Exception:
+                return self._send_json(fail("Bad request"), 400)
+            if not isinstance(body, dict):
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                result = handlers.run_task(task_id=body.get("id"))
+                return self._send_json(ok(result))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route == "/api/tasks/result":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except Exception:
+                length = 0
+            if length <= 0 or length > 1024:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except Exception:
+                return self._send_json(fail("Bad request"), 400)
+            if not isinstance(body, dict):
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                result = handlers.get_task_result(task_id=body.get("id"))
+                return self._send_json(ok(result))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
         if route == "/api/server/stop":
             # Localhost-only exit button: respond first, then stop.
             # shutdown() must run on a different thread than serve_forever.
@@ -115,12 +282,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(fail("Bad request"), 400)
             if body.get("stream"):
                 return self._stream_chat(body)
+            request_id = uuid.uuid4().hex
             try:
                 result = handlers.chat(
                     messages=body.get("messages"),
                     model=body.get("model"),
                     max_tokens=body.get("max_tokens", 512),
                     temperature=body.get("temperature", 0.7),
+                    request_id=request_id,
+                    provider=body.get("provider"),
+                    use_tools=body.get("use_tools", True),
                 )
                 return self._send_json(ok(result))
             except ValueError as e:
@@ -184,18 +355,23 @@ class Handler(BaseHTTPRequestHandler):
 
     def _stream_chat(self, body):
         """NDJSON stream: lines of {t:d,c:delta} | {t:done} | {t:error,e}."""
+        request_id = uuid.uuid4().hex
+        model = body.get("model")
         try:
-            upstream = handlers.chat_stream_raw(
+            request_id, provider, deltas = handlers.stream_chat(
                 messages=body.get("messages"),
-                model=body.get("model"),
+                model=model,
                 max_tokens=body.get("max_tokens", 512),
                 temperature=body.get("temperature", 0.7),
+                request_id=request_id,
+                provider=body.get("provider"),
             )
         except ValueError as e:
             return self._send_json(fail(e), 200)
         except Exception as e:
             return self._send_json(fail(f"Internal error: {e}"), 500)
 
+        label = provider.get("model") or provider.get("name") or model
         self.send_response(200)
         self.send_header("Content-Type", "application/x-ndjson")
         self.send_header("Cache-Control", "no-cache")
@@ -203,39 +379,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         sent_done = False
         try:
-            while True:
-                line = upstream.readline()
-                if not line:
-                    break
-                text = line.decode("utf-8", errors="replace").strip()
-                if not text.startswith("data:"):
+            for text in deltas:
+                if not text:
                     continue
-                data = text[5:].strip()
-                if data == "[DONE]":
-                    self.wfile.write(b'{"t":"done"}\n')
-                    sent_done = True
-                    break
-                try:
-                    obj = json.loads(data)
-                except Exception:
-                    continue
-                choices = obj.get("choices") or []
-                if choices:
-                    delta = choices[0].get("delta") or {}
-                    content = delta.get("content")
-                    if content:
-                        chunk = json.dumps(
-                            {"t": "d", "c": content}, ensure_ascii=False
-                        ).encode("utf-8")
-                        self.wfile.write(chunk + b"\n")
-                    usage = obj.get("usage")
-                    if usage:
-                        u = json.dumps({"t": "usage", "u": usage})
-                        self.wfile.write(u.encode("utf-8") + b"\n")
-            if not sent_done:
-                self.wfile.write(b'{"t":"done"}\n')
-            self.wfile.flush()
+                chunk = json.dumps(
+                    {"t": "d", "c": text}, ensure_ascii=False
+                ).encode("utf-8")
+                self.wfile.write(chunk + b"\n")
+                self.wfile.flush()
+            self.wfile.write(b'{"t":"done"}\n')
+            sent_done = True
+            handlers._log_chat_terminal(request_id, label, True)
         except Exception:
+            if not sent_done:
+                handlers._log_chat_terminal(
+                    request_id, label, False, category="stream_interrupted"
+                )
             try:
                 self.wfile.write(
                     json.dumps({"t": "error", "e": "stream closed"}).encode()
@@ -246,11 +405,13 @@ class Handler(BaseHTTPRequestHandler):
                 pass
         finally:
             try:
-                upstream.close()
+                deltas.close()
             except Exception:
                 pass
 
     def do_GET(self):
+        if not self._host_ok():
+            return self._send_json(fail("Invalid host"), 403)
         parsed = urlparse(self.path)
         route = parsed.path.rstrip("/") or "/"
         qs = parse_qs(parsed.query)
@@ -266,7 +427,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(ok(handlers.get_benchmark()))
             if route == "/api/logs":
                 return self._send_json(ok(handlers.get_logs(
-                    limit=q("limit", "100"), event_filter=q("type", "all"))))
+                    limit=q("limit", "100"), event_filter=q("type", "all"),
+                    query=q("q"), offset=q("offset", "0"))))
             if route == "/api/memory":
                 return self._send_json(ok(handlers.get_memory(
                     limit=q("limit", "20"), query=q("q"))))
@@ -280,6 +442,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(ok(handlers.get_diagnostics()))
             if route == "/api/models":
                 return self._send_json(ok(handlers.get_models()))
+            if route == "/api/providers":
+                return self._send_json(ok(handlers.get_providers()))
             if route == "/api/model-stats":
                 return self._send_json(ok(handlers.get_model_stats(q("id"))))
             if route == "/api/health":
@@ -300,10 +464,10 @@ class Handler(BaseHTTPRequestHandler):
             frontend_root = FRONTEND.resolve()
         except Exception:
             frontend_root = FRONTEND
-        if frontend_root not in target.parents and target != frontend_root:
-            # Allow exact frontend root files only inside frontend/.
-            if not str(target).startswith(str(frontend_root)):
-                return self._send_json(fail("Not found"), 404)
+        try:
+            target.relative_to(frontend_root)
+        except ValueError:
+            return self._send_json(fail("Not found"), 404)
         if target.is_dir():
             target = target / "index.html"
         if not target.exists() or not target.is_file():
@@ -379,7 +543,7 @@ def start_background_threads():
 
 def run(host=HOST, port=PORT):
     server = ThreadingHTTPServer((host, port), Handler)
-    print("LOCAL AI CONTROL CENTER")
+    print("PILLIVESH CHAT HARNESS")
     print(f"Serving: {FRONTEND}")
     print(f"Open: http://{host}:{port}")
     print("Press Ctrl+C to stop.")

@@ -1,13 +1,13 @@
 {
-  "name": "PilliVesh — Local Intelligence",
+  "name": "PilliVesh — Your Personal AI Companion",
   "short_name": "PilliVesh",
-  "description": "Personal portable on-phone AI control center.",
+  "description": "A local-first companion for models, memory, skills, tools and benchmarks.",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#FFF6E6",
+  "theme_color": "#FF8A00",
   "icons": [
     {
       "src": "assets/icon.svg",

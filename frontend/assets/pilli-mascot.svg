@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="pilliMascot" viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pilli the tiger cub mascot">
+  <defs>
+    <linearGradient id="furOrange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8A00"/>
+      <stop offset="100%" stop-color="#F07C00"/>
+    </linearGradient>
+    <linearGradient id="furCream" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF6E6"/>
+      <stop offset="100%" stop-color="#F5E7D3"/>
+    </linearGradient>
+  </defs>
+  
+  <g id="pilliBody" class="pilli-body">
+    <!-- Tail -->
+    <g id="tail" class="pilli-tail">
+      <path d="M 135 190 Q 155 170 165 145 Q 170 125 160 110" 
+            fill="none" stroke="url(#furOrange)" stroke-width="12" stroke-linecap="round"/>
+      <path d="M 140 185 Q 158 168 167 148" 
+            fill="none" stroke="#1F1F1F" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+      <!-- Tail stripes -->
+      <path d="M 148 175 Q 152 170 154 165" stroke="#1F1F1F" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+      <path d="M 155 160 Q 158 155 160 150" stroke="#1F1F1F" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+    </g>
+    
+    <!-- Body -->
+    <ellipse cx="100" cy="195" rx="42" ry="48" fill="url(#furOrange)" stroke="#1F1F1F" stroke-width="2.5"/>
+    <!-- Body cream belly -->
+    <ellipse cx="100" cy="205" rx="26" ry="32" fill="url(#furCream)"/>
+    <!-- Body stripes -->
+    <path d="M 75 170 Q 70 185 72 200" stroke="#1F1F1F" stroke-width="3" fill="none" opacity="0.6"/>
+    <path d="M 125 170 Q 130 185 128 200" stroke="#1F1F1F" stroke-width="3" fill="none" opacity="0.6"/>
+    <path d="M 80 215 Q 78 225 82 235" stroke="#1F1F1F" stroke-width="3" fill="none" opacity="0.6"/>
+    <path d="M 120 215 Q 122 225 118 235" stroke="#1F1F1F" stroke-width="3" fill="none" opacity="0.6"/>
+    
+    <!-- Arms/Paws -->
+    <g id="leftPaw" class="pilli-paw-left">
+      <ellipse cx="72" cy="195" rx="10" ry="14" fill="url(#furOrange)" stroke="#1F1F1F" stroke-width="2.5" transform="rotate(-15 72 195)"/>
+      <ellipse cx="72" cy="200" rx="6" ry="9" fill="url(#furCream)" transform="rotate(-15 72 200)"/>
+    </g>
+    <g id="rightPaw" class="pilli-paw-right">
+      <ellipse cx="128" cy="195" rx="10" ry="14" fill="url(#furOrange)" stroke="#1F1F1F" stroke-width="2.5" transform="rotate(15 128 195)"/>
+      <ellipse cx="128" cy="200" rx="6" ry="9" fill="url(#furCream)" transform="rotate(15 128 200)"/>
+    </g>
+    
+    <!-- Red sash -->
+    <path d="M 65 195 Q 100 210 135 195 L 135 205 Q 100 220 65 205 Z" fill="#E53835" stroke="#1F1F1F" stroke-width="2"/>
+    <circle cx="100" cy="202" r="4" fill="#FF8A00" stroke="#1F1F1F" stroke-width="1.5"/>
+  </g>
+  
+  <g id="pilliHead" class="pilli-head">
+    <!-- Head -->
+    <ellipse cx="100" cy="130" rx="48" ry="52" fill="url(#furOrange)" stroke="#1F1F1F" stroke-width="2.5"/>
+    
+    <!-- Ears -->
+    <g id="leftEar" class="pilli-ear-left">
+      <path d="M 65 95 L 55 65 L 80 85 Z" fill="url(#furOrange)" stroke="#1F1F1F" stroke-width="2.5"/>
+      <path d="M 68 92 L 62 75 L 76 87 Z" fill="url(#furCream)"/>
+    </g>
+    <g id="rightEar" class="pilli-ear-right">
+      <path d="M 135 95 L 145 65 L 120 85 Z" fill="url(#furOrange)" stroke="#1F1F1F" stroke-width="2.5"/>
+      <path d="M 132 92 L 138 75 L 124 87 Z" fill="url(#furCream)"/>
+    </g>
+    
+    <!-- Hood/Fluffy cream fur -->
+    <path d="M 65 110 Q 100 95 135 110 Q 140 125 138 140 Q 100 150 62 140 Q 60 125 65 110" 
+          fill="url(#furCream)" opacity="0.9"/>
+    
+    <!-- Face markings -->
+    <ellipse cx="100" cy="135" rx="32" ry="28" fill="url(#furCream)"/>
+    
+    <!-- Stripes on head -->
+    <path d="M 85 95 Q 82 105 85 115" stroke="#1F1F1F" stroke-width="2.5" fill="none" opacity="0.6"/>
+    <path d="M 115 95 Q 118 105 115 115" stroke="#1F1F1F" stroke-width="2.5" fill="none" opacity="0.6"/>
+    <path d="M 100 92 Q 100 102 100 112" stroke="#1F1F1F" stroke-width="2.5" fill="none" opacity="0.6"/>
+    
+    <!-- Eyes -->
+    <g id="eyes" class="pilli-eyes">
+      <ellipse cx="88" cy="128" rx="6" ry="8" fill="#1F1F1F"/>
+      <ellipse cx="112" cy="128" rx="6" ry="8" fill="#1F1F1F"/>
+      <!-- Eye shine -->
+      <circle cx="90" cy="126" r="2" fill="white"/>
+      <circle cx="114" cy="126" r="2" fill="white"/>
+      <circle cx="89" cy="127" r="1" fill="white"/>
+      <circle cx="113" cy="127" r="1" fill="white"/>
+    </g>
+    <!-- Eyelids for blinking -->
+    <g id="eyelids" class="pilli-eyelids">
+      <ellipse cx="88" cy="128" rx="6" ry="8" fill="url(#furOrange)" class="eyelid" opacity="0"/>
+      <ellipse cx="112" cy="128" rx="6" ry="8" fill="url(#furOrange)" class="eyelid" opacity="0"/>
+    </g>
+    
+    <!-- Nose and mouth -->
+    <path d="M 100 138 Q 98 142 100 145" stroke="#1F1F1F" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="100" cy="140" rx="2.5" ry="2" fill="#1F1F1F"/>
+    <!-- Smile -->
+    <path d="M 94 148 Q 100 152 106 148" stroke="#1F1F1F" stroke-width="2" fill="none" stroke-linecap="round"/>
+    
+    <!-- Whiskers -->
+    <g stroke="#1F1F1F" stroke-width="1.5" opacity="0.6" stroke-linecap="round">
+      <line x1="75" y1="142" x2="60" y2="140"/>
+      <line x1="75" y1="146" x2="58" y2="148"/>
+      <line x1="75" y1="150" x2="60" y2="156"/>
+      <line x1="125" y1="142" x2="140" y2="140"/>
+      <line x1="125" y1="146" x2="142" y2="148"/>
+      <line x1="125" y1="150" x2="140" y2="156"/>
+    </g>
+  </g>
+</svg>
+
+<style>
+  @keyframes pilli-breathe {
+    0%, 100% { transform: scaleY(1) translateY(0); }
+    50% { transform: scaleY(1.02) translateY(-1px); }
+  }
+  @keyframes pilli-blink {
+    0%, 92%, 100% { opacity: 0; }
+    93%, 96% { opacity: 0.9; }
+  }
+  @keyframes pilli-tail-sway {
+    0%, 100% { transform: rotate(0deg); transform-origin: 135px 190px; }
+    25% { transform: rotate(-3deg); transform-origin: 135px 190px; }
+    75% { transform: rotate(2deg); transform-origin: 135px 190px; }
+  }
+  @keyframes pilli-ear-twitch {
+    0%, 90%, 100% { transform: rotate(0deg); }
+    92% { transform: rotate(-2deg); }
+    94% { transform: rotate(2deg); }
+  }
+  
+  .pilli-body {
+    animation: pilli-breathe 3s ease-in-out infinite;
+    transform-origin: 100px 195px;
+  }
+  .pilli-head {
+    animation: pilli-breathe 3s ease-in-out infinite;
+    animation-delay: 0.1s;
+    transform-origin: 100px 130px;
+  }
+  .pilli-tail {
+    animation: pilli-tail-sway 4s ease-in-out infinite;
+  }
+  .pilli-ear-left {
+    animation: pilli-ear-twitch 8s ease-in-out infinite;
+    transform-origin: 68px 92px;
+  }
+  .pilli-ear-right {
+    animation: pilli-ear-twitch 8s ease-in-out infinite;
+    animation-delay: 4s;
+    transform-origin: 132px 92px;
+  }
+  .eyelid {
+    animation: pilli-blink 6s ease-in-out infinite;
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .pilli-body, .pilli-head, .pilli-tail, .pilli-ear-left, .pilli-ear-right, .eyelid {
+      animation: none !important;
+    }
+    .eyelid {
+      opacity: 0 !important;
+    }
+  }
+</style>
+
+<script type="text/javascript">
+<![CDATA[
+  const svg = document.getElementById('pilliMascot');
+  const rightPaw = document.getElementById('rightPaw');
+  let waving = false;
+  
+  svg.addEventListener('click', () => {
+    if (waving) return;
+    waving = true;
+    rightPaw.style.transformOrigin = '128px 195px';
+    rightPaw.style.animation = 'pilli-wave 0.6s ease-in-out';
+    
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = '@keyframes pilli-wave { 0%, 100% { transform: rotate(15deg); } 25% { transform: rotate(35deg); } 50% { transform: rotate(15deg); } 75% { transform: rotate(35deg); } }';
+    svg.appendChild(style);
+    
+    setTimeout(() => {
+      rightPaw.style.animation = 'none';
+      waving = false;
+    }, 600);
+  });
+]]>
+</script>

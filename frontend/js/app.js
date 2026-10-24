@@ -983,7 +983,7 @@ var App = (function () {
   function emptyChatHtml() {
     var provider = currentProvider();
     return '<div class="chat-empty">' +
-      '<img class="empty-mascot" src="assets/mascot.webp" width="368" height="500" alt="Pilli the tiger cub">' +
+      '<object class="empty-mascot" data="assets/pilli-mascot.svg" type="image/svg+xml" width="132" height="185" aria-label="Pilli the tiger cub"></object>' +
       "<h1>Ready when you are.</h1>" +
       "<p>Chat with a local GGUF model or a cloud provider. Keys stay on this device and every request goes through your local server.</p>" +
       '<div class="suggestions">' +

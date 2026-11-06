@@ -94,9 +94,9 @@ CATALOG = [
         ),
         "size_mb": 1001,
         "min_ram_mb": 1200,
-        "context": 4096,
+        "context": 8192,
         "disable_reasoning": True,
-        "notes": "LFM3 1.7B text model, QAD Q4_0 quant. Needs llama.cpp >= b11960 (v0.8.0); Termux pkg 0.7.0 cannot load lfm3 arch. 4096 ctx verified on Adreno 650 phone.",
+        "notes": "LFM3 1.7B text model, QAD Q4_0 quant. Needs llama.cpp >= b11960 (v0.8.0); Termux pkg 0.7.0 cannot load lfm3 arch.",
     },
 ]
 

@@ -213,7 +213,7 @@ python3 -m runtime.model.downloader --status          # progress / state
 | Qwen2.5 0.5B | Q4_K_M | ~400 MB | ~1.2 GB |
 | Llama 3.2 1B | Q4_K_M | ~800 MB | ~1.8 GB |
 | Gemma 3 1B IT Heretic | Q4_K_M | ~806 MB | ~1.2 GB |
-| LFM3 1.7B QAD | Q4_0 | ~1.0 GB | ~1.2 GB (8192 ctx) |
+| LFM3 1.7B QAD | Q4_0 | ~1.0 GB | ~1.2 GB (12288 ctx) |
 
 LFM3 needs llama.cpp ≥ b11960 (v0.8.0); the Termux 0.7.0 package cannot
 load the `lfm3` architecture (`unknown model architecture: 'lfm3'`).

@@ -600,6 +600,44 @@ def _safe_probe():
         pass
 
 
+def delete_model(model_id):
+    """Delete an installed model file (allow-list only). Rejects resident."""
+    from pathlib import Path as _P
+    if not model_id or not isinstance(model_id, str):
+        raise ValueError("Missing model id")
+    model_id = model_id.strip()
+    from runtime.model import router as router_mod
+    if model_id in router_mod.loaded_model_ids():
+        raise ValueError("Model is loaded. Unload it first.")
+    from runtime.model.catalog import get_model
+    entry = get_model(model_id)  # raises ValueError for unknown ids
+    path = _P(entry.get("path") or "") if entry.get("local") else _P("models") / entry["filename"]
+    # Resolve against repo root, keep inside models/.
+    root_models = (MODELS_DIR).resolve()
+    try:
+        resolved = (root_models / path.name).resolve()
+        resolved.relative_to(root_models)
+    except (ValueError, Exception):
+        resolved = None
+    if resolved is None or not resolved.is_file():
+        raise ValueError("Model file not installed")
+    size = resolved.stat().st_size
+    resolved.unlink()
+    for suf in (".part",):
+        part = _P(str(resolved) + suf)
+        try:
+            if part.exists():
+                part.unlink()
+        except OSError:
+            pass
+    try:
+        from runtime.monitor.monitor import log_event
+        log_event("model_delete", {"model": model_id, "status": "deleted", "message": f"Model {model_id} deleted"})
+    except Exception:
+        pass
+    return {"model_id": model_id, "status": "deleted", "freed_mb": size // (1024 * 1024)}
+
+
 def unload_model(model_id):
     from runtime.model import router as router_mod
     if not model_id or not isinstance(model_id, str):

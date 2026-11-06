@@ -70,6 +70,7 @@ var API = (function () {
     downloadModel: function (id) { return post("/api/models/download", { id: id }); },
     loadModel: function (id) { return post("/api/models/load", { id: id }); },
     unloadModel: function (id) { return post("/api/models/unload", { id: id }); },
+    deleteModel: function (id) { return post("/api/models/delete", { id: id }); },
     freeRam: function () { return post("/api/memory/free", {}); },
     stopServer: function () { return post("/api/server/stop", {}); },
 

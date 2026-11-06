@@ -292,6 +292,7 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=request_id,
                     provider=body.get("provider"),
                     use_tools=body.get("use_tools", True),
+                    use_web=body.get("use_web", False),
                 )
                 return self._send_json(ok(result))
             except ValueError as e:
@@ -329,7 +330,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send_json(fail(f"Internal error: {e}"), 500)
         if route in ("/api/models/download", "/api/models/load",
-                     "/api/models/unload"):
+                     "/api/models/unload", "/api/models/delete"):
             try:
                 length = int(self.headers.get("Content-Length") or 0)
             except Exception:
@@ -346,6 +347,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send_json(ok(handlers.start_download(model_id)))
                 if route == "/api/models/load":
                     return self._send_json(ok(handlers.load_model(model_id)))
+                if route == "/api/models/delete":
+                    return self._send_json(ok(handlers.delete_model(model_id)))
                 return self._send_json(ok(handlers.unload_model(model_id)))
             except ValueError as e:
                 return self._send_json(fail(e), 200)

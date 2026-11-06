@@ -219,6 +219,7 @@ LFM3 needs llama.cpp ≥ b11960 (v0.8.0); the Termux 0.7.0 package cannot
 load the `lfm3` architecture (`unknown model architecture: 'lfm3'`).
 Install it once with `./bin/install-llama-b11960.sh` (backs up 0.7.0 to
 `~/.backup/llama-0.7.0/`, installs `llama-server.b11960` wrappers).
+Use `./bin/check.sh` for a one-screen health check (RAM, llama version, ports).
 The router passes
 `--reasoning off` for LFM3 because its template otherwise puts the reply
 in `reasoning_content` with empty `message.content`.

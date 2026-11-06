@@ -38,6 +38,7 @@ var Settings = (function () {
       tempOut: document.getElementById("tempOut"),
       harnessTokens: document.getElementById("harnessTokens"),
       harnessTools: document.getElementById("harnessTools"),
+      harnessWeb: document.getElementById("harnessWeb"),
       harnessMsg: document.getElementById("harnessMsg"),
       clearAll: document.getElementById("clearAllChatsBtn"),
       freeRam: document.getElementById("freeRamBtn"),
@@ -116,6 +117,7 @@ var Settings = (function () {
       saveHarness();
     });
     el.harnessTools.addEventListener("change", saveHarness);
+    el.harnessWeb.addEventListener("change", saveHarness);
     el.clearAll.addEventListener("click", function () {
       if (!confirm("Delete every chat on this device? This cannot be undone.")) return;
       Store.saveChats([]);
@@ -132,6 +134,7 @@ var Settings = (function () {
       if (button.hasAttribute("data-download")) downloadModel(id);
       else if (button.hasAttribute("data-load")) loadModel(id);
       else if (button.hasAttribute("data-unload")) unloadModel(id);
+      else if (button.hasAttribute("data-delete")) deleteModel(id);
     });
 
     el.benchRun.addEventListener("click", function () { runBenchmark(null); });
@@ -464,6 +467,7 @@ var Settings = (function () {
     el.tempOut.textContent = settings.temperature;
     el.harnessTokens.value = settings.maxTokens;
     el.harnessTools.checked = !!settings.useTools;
+    el.harnessWeb.checked = !!settings.useWeb;
     show(el.harnessMsg, "", "");
   }
 
@@ -473,6 +477,7 @@ var Settings = (function () {
     settings.temperature = parseFloat(el.harnessTemp.value) || 0;
     settings.maxTokens = parseInt(el.harnessTokens.value, 10) || 512;
     settings.useTools = el.harnessTools.checked;
+    settings.useWeb = el.harnessWeb.checked;
     Store.saveHarness(settings);
     if (window.App) App.applyHarness();
   }
@@ -543,7 +548,8 @@ var Settings = (function () {
       buttons = '<span class="tag ok">resident</span>' +
         '<button class="mini" data-unload="1" data-id="' + esc(model.id) + '">Unload</button>';
     } else if (model.installed) {
-      buttons = '<button class="mini" data-load="1" data-id="' + esc(model.id) + '">Load</button>';
+      buttons = '<button class="mini" data-load="1" data-id="' + esc(model.id) + '">Load</button>' +
+        '<button class="mini" data-delete="1" data-id="' + esc(model.id) + '">Delete</button>';
     } else if (download.status === "downloading" && download.model_id === model.id) {
       buttons = '<span class="tag warn">downloading ' + (pct != null ? pct + "%" : "…") + "</span>";
     } else {
@@ -612,6 +618,20 @@ var Settings = (function () {
     modelBusy = false;
     if (!response.success) show(el.modelsMsg, response.error || "Unload failed", "err");
     else show(el.modelsMsg, "Model unloaded.", "ok");
+    await loadModels();
+    if (window.App) {
+      App.refreshOverview();
+    }
+  }
+
+  async function deleteModel(id) {
+    if (!confirm("Delete " + id + " to free space? You can re-download it.")) return;
+    modelBusy = true;
+    show(el.modelsMsg, "Deleting…", "");
+    var response = await API.deleteModel(id);
+    modelBusy = false;
+    if (!response.success) show(el.modelsMsg, response.error || "Delete failed", "err");
+    else show(el.modelsMsg, "Deleted " + id + " (freed " + response.data.freed_mb + " MB).", "ok");
     await loadModels();
     if (window.App) {
       App.refreshOverview();

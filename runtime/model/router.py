@@ -306,9 +306,10 @@ def load_model(model_id, swap=True):
 
         ctx = int(entry.get("context") or 4096)
         # Cap context for phone RAM (llama-3.2 lists 131072 which is not
-        # practical on this device).
-        if ctx > 8192:
-            ctx = 8192
+        # practical on this device). Allow up to 16384 for LFM3-class
+        # hybrid-quant models; larger values clamp down.
+        if ctx > 16384:
+            ctx = 16384
         pid = _spawn(final, ctx_size=ctx,
                      disable_reasoning=bool(entry.get("disable_reasoning")))
         _write_state({"running": True, "pid": pid, "port": ROUTER_PORT,

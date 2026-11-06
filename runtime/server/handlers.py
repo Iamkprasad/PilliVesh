@@ -25,6 +25,19 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+def _message_text(message):
+    """Best display text from a chat message; fallback to reasoning trace."""
+    if not isinstance(message, dict):
+        return ""
+    text = message.get("content") or ""
+    if not isinstance(text, str):
+        text = ""
+    if text.strip():
+        return text
+    reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
+    return reasoning if isinstance(reasoning, str) else ""
+
+
 def _load_json(path, default=None):
     try:
         if not path.exists():
@@ -341,7 +354,7 @@ def run_task(task_id=None):
         choices = result.get("choices") or []
         if not choices:
             raise ValueError("No response from model")
-        content = (choices[0].get("message") or {}).get("content") or ""
+        content = _message_text(choices[0].get("message") or {})
         if not content.strip():
             raise ValueError("Empty response from model")
 
@@ -746,7 +759,7 @@ def _log_event(event, data):
         pass
 
 
-def _chat_remote(provider, messages, max_tokens, temperature, request_id, use_tools):
+def _chat_remote(provider, messages, max_tokens, temperature, request_id, use_tools, use_web):
     """Completion against a configured remote provider (key stays here)."""
     from runtime.model import providers as provider_mod
     from runtime.model.tool_loop import parse_tool_request
@@ -789,7 +802,7 @@ def _chat_remote(provider, messages, max_tokens, temperature, request_id, use_to
         choices = result.get("choices") or []
         text = ""
         if choices:
-            text = (choices[0].get("message") or {}).get("content") or ""
+            text = _message_text(choices[0].get("message") or {})
         request = parse_tool_request(text)
         if not request:
             _log_chat_terminal(request_id, model_label, True)
@@ -809,7 +822,7 @@ def _chat_remote(provider, messages, max_tokens, temperature, request_id, use_to
 
         steps += 1
         _log_event("tool_request", {"tool": request.tool, "step": steps})
-        execution = executor.execute(text)
+        execution = executor.execute(text, use_web=use_web)
         if execution.get("success"):
             _log_event("tool_executed", {"tool": request.tool, "step": steps})
             output = execution.get("output", "")
@@ -839,7 +852,7 @@ def _chat_remote(provider, messages, max_tokens, temperature, request_id, use_to
     return result
 
 
-def chat(messages, model=None, max_tokens=512, temperature=0.7, request_id=None, use_tools=True, provider=None):
+def chat(messages, model=None, max_tokens=512, temperature=0.7, request_id=None, use_tools=True, provider=None, use_web=False):
     """Proxy a chat completion to the selected provider.
 
     Local llama.cpp is the default for backwards compatibility. Remote
@@ -860,7 +873,7 @@ def chat(messages, model=None, max_tokens=512, temperature=0.7, request_id=None,
     if provider and provider != "local":
         return _chat_remote(
             resolve_provider(provider), messages, max_tokens, temperature,
-            request_id, use_tools,
+            request_id, use_tools, use_web,
         )
 
     _log_chat_request(messages, model, request_id, use_tools=use_tools)
@@ -892,6 +905,11 @@ def chat(messages, model=None, max_tokens=512, temperature=0.7, request_id=None,
         try:
             with urllib.request.urlopen(req, timeout=180) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
+            choices = result.get("choices") or []
+            if choices:
+                msg = choices[0].get("message") or {}
+                if not (msg.get("content") or "").strip():
+                    msg["content"] = _message_text(msg)
             _log_chat_terminal(request_id, model, True)
             return result
         except urllib.error.HTTPError as e:
@@ -941,7 +959,7 @@ def chat(messages, model=None, max_tokens=512, temperature=0.7, request_id=None,
         response_text = ""
         if choices:
             message = choices[0].get("message") or {}
-            response_text = message.get("content") or ""
+            response_text = _message_text(message)
 
         # Check for a tool request in the model's text output.
         tool_request = parse_tool_request(response_text)
@@ -966,7 +984,7 @@ def chat(messages, model=None, max_tokens=512, temperature=0.7, request_id=None,
         step_count += 1
         _log_event("tool_request", {"tool": tool_request.tool, "step": step_count})
 
-        exec_result = executor.execute(response_text)
+        exec_result = executor.execute(response_text, use_web=use_web)
         if exec_result.get("success"):
             _log_event("tool_executed", {"tool": tool_request.tool, "step": step_count})
             tool_content = exec_result.get("output", "")
@@ -1063,7 +1081,7 @@ def _iter_local_stream(upstream):
             if not choices:
                 continue
             delta = choices[0].get("delta") or {}
-            content = delta.get("content")
+            content = delta.get("content") or delta.get("reasoning_content") or delta.get("reasoning")
             if content:
                 yield content
     finally:

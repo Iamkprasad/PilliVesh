@@ -217,9 +217,9 @@ python3 -m runtime.model.downloader --status          # progress / state
 
 LFM3 needs llama.cpp ≥ b11960 (v0.8.0); the Termux 0.7.0 package cannot
 load the `lfm3` architecture (`unknown model architecture: 'lfm3'`).
-On this device the upstream Android ARM64 b11960 build is installed as
-`llama-server.b11960` (wrappers set `LD_LIBRARY_PATH`); 0.7.0 files are
-backed up in `~/.backup/llama-0.7.0/`. The router passes
+Install it once with `./bin/install-llama-b11960.sh` (backs up 0.7.0 to
+`~/.backup/llama-0.7.0/`, installs `llama-server.b11960` wrappers).
+The router passes
 `--reasoning off` for LFM3 because its template otherwise puts the reply
 in `reasoning_content` with empty `message.content`.
 

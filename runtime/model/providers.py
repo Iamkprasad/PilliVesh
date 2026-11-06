@@ -444,7 +444,11 @@ def complete(provider, messages, max_tokens=512, temperature=0.7):
         if not choices:
             raise _http_error(provider, 502, "empty completion", "")
         message = choices[0].get("message") or {}
-        result = _normalized(_openai_text(message.get("content")), provider)
+        text = _openai_text(message.get("content"))
+        if not text.strip():
+            reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
+            text = reasoning if isinstance(reasoning, str) else ""
+        result = _normalized(text, provider)
         if data.get("usage"):
             result["usage"] = data["usage"]
         return result

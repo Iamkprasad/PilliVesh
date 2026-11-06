@@ -190,11 +190,13 @@ def stop_router():
         return {"stopped": True, "killed": killed}
 
 
-def _spawn(model_path, ctx_size=4096):
+def _spawn(model_path, ctx_size=4096, disable_reasoning=False):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(exist_ok=True)
     # -dev none / --no-op-offload: this Termux Vulkan build segfaults while
     # loading GGUFs; pure-CPU path is stable on this device.
+    # disable_reasoning: LFM3's template puts chat output in reasoning_content
+    # (empty message.content); --reasoning off restores direct answers.
     argv = [
         "llama-server",
         "-m", str(model_path),
@@ -204,6 +206,8 @@ def _spawn(model_path, ctx_size=4096):
         "-dev", "none",
         "--no-op-offload",
     ]
+    if disable_reasoning:
+        argv += ["--reasoning", "off"]
     try:
         logf = open(LOG_FILE, "ab", buffering=0)
     except Exception as e:
@@ -305,7 +309,8 @@ def load_model(model_id, swap=True):
         # practical on this device).
         if ctx > 8192:
             ctx = 8192
-        pid = _spawn(final, ctx_size=ctx)
+        pid = _spawn(final, ctx_size=ctx,
+                     disable_reasoning=bool(entry.get("disable_reasoning")))
         _write_state({"running": True, "pid": pid, "port": ROUTER_PORT,
                       "model_id": model_id, "started": _now()})
         return {"model_id": model_id, "status": "loaded",

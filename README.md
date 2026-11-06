@@ -59,12 +59,19 @@ Stop it with `Ctrl+C`, or from another shell:
   is lazy so idle battery drain is zero.
 - **Harness controls** — system prompt, temperature, max tokens, and a
   read-only tool toggle (device inspection) in Control center → Harness.
+  Tools: `system_info` (CPU/RAM/GPU), `file_read` (read project text files),
+  `list_dir` (list project directories), and `web_fetch` (read a public web
+  page; requires enabling web access below).
+- **Web access** — an on/off toggle in Control center → Assistant. When on,
+  the assistant may use `web_fetch` to read public web pages; when off, all
+  web tool calls are rejected. No browsing history or cookies are kept.
 - **System panel** — collapsible Device, Runtime controls, Tasks, Logs, and
   Memory cards in Control center → System: CPU/RAM/GPU telemetry, task
   counts and details, grouped/searchable event logs, searchable memory,
   free-RAM cleanup, and a stop-server button.
 - **Streaming replies** — local and cloud responses stream token by token over
-  NDJSON; the red button cancels a generation.
+  NDJSON; the red button cancels a generation. Assistant messages show
+  tokens/second and token count below the message while streaming.
 - **Light/dark theme** — saved in `localStorage` and applied before first paint.
 - **PWA-ready** — `manifest.json` + icon included; use your browser's
   "Add to Home screen" to install PilliVesh like a native app.
@@ -205,6 +212,16 @@ python3 -m runtime.model.downloader --status          # progress / state
 | SmolLM2 360M | Q8_0 | ~386 MB | ~1.0 GB |
 | Qwen2.5 0.5B | Q4_K_M | ~400 MB | ~1.2 GB |
 | Llama 3.2 1B | Q4_K_M | ~800 MB | ~1.8 GB |
+| Gemma 3 1B IT Heretic | Q4_K_M | ~806 MB | ~1.2 GB |
+| LFM3 1.7B QAD | Q4_0 | ~1.0 GB | ~1.2 GB (4096 ctx) |
+
+LFM3 needs llama.cpp ≥ b11960 (v0.8.0); the Termux 0.7.0 package cannot
+load the `lfm3` architecture (`unknown model architecture: 'lfm3'`).
+On this device the upstream Android ARM64 b11960 build is installed as
+`llama-server.b11960` (wrappers set `LD_LIBRARY_PATH`); 0.7.0 files are
+backed up in `~/.backup/llama-0.7.0/`. The router passes
+`--reasoning off` for LFM3 because its template otherwise puts the reply
+in `reasoning_content` with empty `message.content`.
 
 Downloads stream to `models/*.part`, are size-verified, then moved into place;
 only catalog ids are accepted (arbitrary URLs are refused). After a download

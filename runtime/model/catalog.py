@@ -82,6 +82,22 @@ CATALOG = [
         "context": 8192,
         "notes": "Abliterated uncensored Gemma 3 1B. Q4_K_M quant.",
     },
+    {
+        "id": "lfm3-1.7b-qad-q4_0",
+        "name": "LFM3 1.7B QAD",
+        "quant": "Q4_0 (QAD)",
+        "repo": "LiquidAI/LFM3-1.7B-GGUF",
+        "filename": "LFM3-1.7B-QAD-Q4_0.gguf",
+        "url": (
+            "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF"
+            "/resolve/main/LFM3-1.7B-QAD-Q4_0.gguf"
+        ),
+        "size_mb": 1001,
+        "min_ram_mb": 1200,
+        "context": 4096,
+        "disable_reasoning": True,
+        "notes": "LFM3 1.7B text model, QAD Q4_0 quant. Needs llama.cpp >= b11960 (v0.8.0); Termux pkg 0.7.0 cannot load lfm3 arch. 4096 ctx verified on Adreno 650 phone.",
+    },
 ]
 
 

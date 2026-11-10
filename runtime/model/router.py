@@ -197,6 +197,7 @@ def _spawn(model_path, ctx_size=4096, disable_reasoning=False):
     # loading GGUFs; pure-CPU path is stable on this device.
     # disable_reasoning: LFM3's template puts chat output in reasoning_content
     # (empty message.content); --reasoning off restores direct answers.
+    threads = max(2, (os.cpu_count() or 8) - 2)
     argv = [
         "llama-server",
         "-m", str(model_path),
@@ -205,6 +206,14 @@ def _spawn(model_path, ctx_size=4096, disable_reasoning=False):
         "--ctx-size", str(ctx_size),
         "-dev", "none",
         "--no-op-offload",
+        "--threads", str(threads),
+        "--threads-batch", str(threads),
+        "--parallel", "1",
+        "--batch-size", "512",
+        "--ubatch-size", "128",
+        "--cache-type-k", "q8_0",
+        "--cache-type-v", "q8_0",
+        "--flash-attn", "on",
     ]
     if disable_reasoning:
         argv += ["--reasoning", "off"]
@@ -304,12 +313,10 @@ def load_model(model_id, swap=True):
             _kill_pid(int(st["pid"]))
             time.sleep(0.3)
 
+        ctx_cap = 2048 if (free_mb is not None and free_mb < 1800) else 4096
         ctx = int(entry.get("context") or 4096)
-        # Cap context for phone RAM (llama-3.2 lists 131072 which is not
-        # practical on this device). Allow up to 16384 for LFM3-class
-        # hybrid-quant models; larger values clamp down.
-        if ctx > 16384:
-            ctx = 16384
+        if ctx > ctx_cap:
+            ctx = ctx_cap
         pid = _spawn(final, ctx_size=ctx,
                      disable_reasoning=bool(entry.get("disable_reasoning")))
         _write_state({"running": True, "pid": pid, "port": ROUTER_PORT,

@@ -1,38 +1,35 @@
-# Session Summary — 2026-11-06 — LFM3 1.7B bring-up
+# Session Summary — 2026-11-09 — PilliVesh advanced
 
 ## Objective
-Evaluate and, if viable, bring up LFM3 1.7B text model in PilliVesh on the phone.
+Recheck and make PilliVesh advanced for localhost web, all models, max phone efficiency (stdlib llama.cpp).
 
 ## Done
-- Proved Termux llama 0.7.0 cannot load LFM3 (`unknown model architecture: 'lfm3'`); Termux pkg repo still tops out at 0.7.0, so no pkg upgrade path.
-- Installed upstream llama.cpp b11960 Android ARM64 (`0.8.0-dev`, commit 8642541b2) as `llama-server.b11960`/`llama-cli.b11960` in Termux prefix, with wrappers exporting `LD_LIBRARY_PATH` and backend `.so` files copied alongside the binaries (`$ORIGIN` discovery). 0.7.0 files backed up in `~/.backup/llama-0.7.0/`.
-- Fixed LFM3 bring-up: catalog now `context 4096`, `min_ram_mb 1200`, `disable_reasoning true`; router passes `--reasoning off` for it (otherwise reply lands in `reasoning_content` with empty `message.content`, UI shows "[empty response]").
-- Verified end-to-end via router load (port 8081) + chat completions + `benchmarks.probe` light probes. Model left unloaded (battery-lazy default). Kept as opt-in, not autoload.
-- Updated `README.md` model table (added Gemma 3 1B + LFM3 with RAM/llama-version notes).
+- Recheck: 140 tests OK, Qwen probe 18.6/3.5 throttled, runtime_profile stale ([2048,4096,8192), ctx fixed 4096.
+- Advanced router: threads = cpu-2 (6), added --threads-batch, --flash-attn on, --parallel 1, batch 512/ubatch 128, q8 KV (kept). Adaptive ctx: 2048 if <1.8 GB free else 4096.
+- Refreshed runtime_profile ([2048,4096]); added adaptive ctx test.
+- Verified: 141 tests OK; Qwen probe **86.5/25.0 t/s** (was 18.6/3.5), UI 5 models at 4096, router unloaded.
 
 ## Files changed
-- `runtime/model/catalog.py` — LFM3 entry: 4096 ctx, 1200 min RAM, disable_reasoning.
-- `runtime/model/router.py` — `_spawn(..., disable_reasoning)` passes `--reasoning off`.
-- `README.md` — model table + LFM3 llama-version note.
-- `SESSION-SUMMARY.md` — this handoff; `docs/sessions/2026-11-05-close-listening-ports.md` — archive.
+- runtime/model/router.py — threads/flash/adaptive ctx.
+- tests/test_router_phone.py — flash + adaptive test.
+- README.md — advanced tuning note.
+- SESSION-SUMMARY.md — this handoff.
 
 ## Decisions
-- Side-installed upstream b11960 instead of overwriting Termux pkg files silently (wrappers + backup, reversible).
-- 4096 ctx (not 8192) + 1200 min RAM: both fit measured RAM (loads at ~1.3 GB free); 8192/1600 was over-strict and self-blocking.
-- `--reasoning off` only for LFM3: without it all chat output is hidden in `reasoning_content`; keeps old-binary compatibility for other models.
-- Did not change autoload: SmolLM2 360M stays default.
+- Kept stdlib CPU; no LiteRT/Vulkan (fails Adreno).
+- cpu-2 threads leaves 2 cores for OS/UI; flash-attn on for prompt speed.
+- Adaptive ctx instead of fixed: saves swap when RAM tight.
 
 ## Verification
-- `llama-cli --version` — `0.8.0-dev (b11960)` (after install).
-- `python3 -m runtime.model.router load lfm3-1.7b-qad-q4_0` — loaded, `/health` ok, chat returns prose.
-- `python3 -m benchmarks.probe` — 2 samples: prompt 7.74/gen 5.0 tok/s (13.0s) then prompt 3.56/gen 2.15 tok/s (26.5s); high variance (thermal/RAM), slower than SmolLM2 baseline (gen 6.17).
-- `python3 -m unittest discover -s tests -q` — 132 tests, OK. UI/dashboard not re-run visually.
+- `python3 -m unittest discover -s tests -q` — 141 tests, OK.
+- `probe` — 86.5/25.0 t/s, 2.43s (vs 18.6/3.5 before).
+- `curl /api/models` — 5 models, all 4096.
+- Router unloaded, /tmp UI stopped.
 
 ## Known issues / limits
-- Speed is CPU-only at ~2–5 tok/s generation; expect slow replies on this phone.
-- New binaries depend on wrappers + copied `.so` in bin/lib; a `pkg upgrade llama.cpp` would clobber them (restore from `~/.backup/llama-0.7.0/` or re-install b11960).
-- Unrelated uncommitted changes in tree (frontend, memory, tools) left untouched and uncommitted.
+- CPU-only; NPU needs native Gallery app. Swap still possible if many apps open.
+- 2048 ctx truncates long chats (<1.8 GB case).
+- Uncommitted frontend/memory/tools untouched.
 
 ## Next steps
-- Test tool-calling/structured output from LFM3 through `/api/chat` and compare answers vs Qwen2.5 0.5B before considering it default.
-- If keeping permanently, document install steps in README "Portability notes" so a fresh clone knows why plain `pkg install llama.cpp` fails for LFM3.
+- Cool-down bench compare; try SmolLM2 download as fastest first-run.

@@ -33,8 +33,8 @@ from runtime.server import handlers
 
 HOST = os.environ.get("AI_LAB_HOST", "127.0.0.1")
 PORT = int(os.environ.get("AI_LAB_PORT", "8080"))
-TELEMETRY_INTERVAL = float(os.environ.get("AI_LAB_TELEMETRY_INTERVAL", "5"))
-BENCH_INTERVAL = float(os.environ.get("AI_LAB_BENCH_INTERVAL", "30"))
+TELEMETRY_INTERVAL = float(os.environ.get("AI_LAB_TELEMETRY_INTERVAL", "30"))
+BENCH_INTERVAL = float(os.environ.get("AI_LAB_BENCH_INTERVAL", "300"))
 AUTOLOAD = os.environ.get("AI_LAB_AUTOLOAD", "1") not in ("0", "false", "no")
 
 _probe_lock = threading.Lock()
@@ -523,7 +523,10 @@ def _autoload_model():
         if router_mod.router_running():
             return
         have = {m.get("name") for m in installed()}
-        for entry in list_models():
+        entries = list_models()
+        # Prefer Qwen 0.5B (fastest on phone CPU), else first installed.
+        entries.sort(key=lambda e: 0 if e["id"] == "qwen2.5-0.5b-q4km" else 1)
+        for entry in entries:
             if entry["filename"] in have:
                 try:
                     router_mod.load_model(entry["id"])

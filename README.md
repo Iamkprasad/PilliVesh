@@ -213,7 +213,11 @@ python3 -m runtime.model.downloader --status          # progress / state
 | Qwen2.5 0.5B | Q4_K_M | ~400 MB | ~1.2 GB |
 | Llama 3.2 1B | Q4_K_M | ~800 MB | ~1.8 GB |
 | Gemma 3 1B IT Heretic | Q4_K_M | ~806 MB | ~1.2 GB |
-| LFM3 1.7B QAD | Q4_0 | ~1.0 GB | ~1.2 GB (12288 ctx) |
+| LFM3 1.7B QAD | Q4_0 | ~1.0 GB | ~1.2 GB (4096 ctx) |
+
+Phone efficiency (CPU, ~2 GB RAM): all models capped at 4096 ctx (adaptive: 2048 if <1.8 GB free),
+router runs `--threads 6 --threads-batch 6 --parallel 1 --batch-size 512 --ubatch-size 128 --cache-type-k/v q8_0 --flash-attn on`,
+telemetry 30s / benchmark 300s, Qwen autoloads first. Qwen is fastest (86/25 t/s probe after revamp); LFM3 is best for simple explanations.
 
 LFM3 needs llama.cpp ≥ b11960 (v0.8.0); the Termux 0.7.0 package cannot
 load the `lfm3` architecture (`unknown model architecture: 'lfm3'`).

@@ -80,6 +80,30 @@ class MemoryAPITests(unittest.TestCase):
             handlers.get_memory()
         self.assertIn("Memory database unavailable", str(caught.exception))
 
+    def test_remember_episode_stores_verified_tool_episode(self):
+        mm.remember_episode(
+            "system_info", "system_info",
+            {"cpu_cores": 8, "memory": "Mem: 8192 4096 2048 512 1024 4096\nSwap: 4096 1024 3072",
+             "gpu": "Adreno (TM) 650"},
+            verified=True,
+        )
+        result = handlers.get_memory()
+        self.assertEqual(result["counts"]["episodic"], 1)
+        item = result["items"][0]
+        self.assertIn("Task: system_info", item["content"])
+        self.assertIn("Tool: system_info", item["content"])
+        self.assertIn("Verified: True", item["content"])
+        self.assertIn("CPU cores: 8", item["content"])
+        self.assertIn("RAM available: 4096", item["content"])
+        self.assertIn("GPU: Adreno 650", item["content"])
+        self.assertIn("Backend: Vulkan", item["content"])
+
+    def test_remember_episode_unverified_still_stored(self):
+        mm.remember_episode("custom_tool", "custom_tool", {"ok": True}, verified=False)
+        result = handlers.get_memory()
+        self.assertEqual(result["counts"]["episodic"], 1)
+        self.assertIn("Verified: False", result["items"][0]["content"])
+
 
 if __name__ == "__main__":
     unittest.main()

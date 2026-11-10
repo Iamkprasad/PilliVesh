@@ -32,7 +32,7 @@ CATALOG = [
         ),
         "size_mb": 386,
         "min_ram_mb": 1000,
-        "context": 8192,
+        "context": 4096,
         "notes": "Smallest download. Best first model for this phone.",
     },
     {
@@ -47,7 +47,7 @@ CATALOG = [
         ),
         "size_mb": 400,
         "min_ram_mb": 1200,
-        "context": 8192,
+        "context": 4096,
         "notes": "Good balance of size and quality. Apache-2.0 license.",
     },
     {
@@ -62,7 +62,7 @@ CATALOG = [
         ),
         "size_mb": 800,
         "min_ram_mb": 1800,
-        "context": 131072,
+        "context": 4096,
         "notes": "Largest of the three. Needs ~1.8 GB free RAM.",
     },
     {
@@ -79,7 +79,7 @@ CATALOG = [
         ),
         "size_mb": 806,
         "min_ram_mb": 1200,
-        "context": 8192,
+        "context": 4096,
         "notes": "Abliterated uncensored Gemma 3 1B. Q4_K_M quant.",
     },
     {
@@ -94,7 +94,7 @@ CATALOG = [
         ),
         "size_mb": 1001,
         "min_ram_mb": 1200,
-        "context": 12288,
+        "context": 4096,
         "disable_reasoning": True,
         "notes": "LFM3 1.7B text model, QAD Q4_0 quant. Needs llama.cpp >= b11960 (v0.8.0); Termux pkg 0.7.0 cannot load lfm3 arch.",
     },
@@ -150,7 +150,7 @@ def _local_model_entry(path):
         "url": None,
         "size_mb": size_mb,
         "min_ram_mb": max(512, size_mb + 256),
-        "context": 8192,
+        "context": 4096,
         "notes": "Local model (no download).",
         "local": True,
         "path": str(resolved),

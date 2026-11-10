@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FFF6E6" id="themeColor">
 <script src="js/theme.js"></script>
+<script src="js/utils.js"></script>
 <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
 <link rel="apple-touch-icon" href="assets/icon.svg">
 <link rel="stylesheet" href="css/app.css">
@@ -370,6 +371,11 @@
               <input id="harnessTools" type="checkbox" checked>
               <span class="switch"></span>
               <span><b>Enable tools</b><small>Bounded read-only device inspection, at most two steps.</small></span>
+            </label>
+            <label class="switch-row">
+              <input id="harnessWeb" type="checkbox">
+              <span class="switch"></span>
+              <span><b>Enable web access</b><small>Allow the assistant to fetch public web pages (internet required).</small></span>
             </label>
           </div>
         </section>

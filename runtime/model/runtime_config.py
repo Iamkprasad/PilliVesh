@@ -77,7 +77,7 @@ def detect():
         "vulkan_available": vulkan,
         "gpu": gpu,
         "backend": "vulkan" if vulkan else "cpu",
-        "candidate_context_sizes": [2048, 4096, 8192],
+        "candidate_context_sizes": [2048, 4096],
         "gpu_layer_strategy": "auto",
         "model_downloaded": model_downloaded,
     }

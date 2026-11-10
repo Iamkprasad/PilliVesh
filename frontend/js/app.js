@@ -946,7 +946,7 @@ var App = (function () {
   }
 
   function typingHtml() {
-    return '<span class="typing"><i></i><i></i><i></i></span>';
+    return '<span class="typing"><span class="typing-label">Pilli is typing</span><i></i><i></i><i></i></span>';
   }
 
   function messageHtml(message, index, chat) {
@@ -965,6 +965,8 @@ var App = (function () {
       if (message.tool) meta += '<span class="tag">tool: ' + esc(message.tool) + "</span>";
       if (message.status === "stopped") meta += '<span class="state">stopped</span>';
       if (message.note) meta += '<span class="state">' + esc(message.note) + "</span>";
+      if (message.tps != null) meta += '<span class="metric">' + esc(message.tps) + " tok/s</span>";
+      if (message.tokens != null) meta += '<span class="metric">' + esc(message.tokens) + " tok</span>";
     }
     meta += "<span>" + esc(clock(message.at || chat.createdAt)) + "</span>";
     if (out) {
@@ -1123,13 +1125,17 @@ var App = (function () {
     setBusyUI(true);
     renderSidebar();
 
+    var startTime = Date.now();
     var live = {
       role: "assistant",
       content: "",
       at: Date.now(),
       status: "streaming",
       providerId: provider.id,
-      model: provider.model
+      model: provider.model,
+      tps: null,
+      tokens: null,
+      startTime: startTime,
     };
     chat.messages.push(live);
     state.live = live;
@@ -1147,6 +1153,7 @@ var App = (function () {
           max_tokens: harness.maxTokens,
           temperature: harness.temperature,
           use_tools: true,
+          use_web: !!harness.useWeb,
           signal: controller.signal
         });
         if (!response.success) throw new Error(response.error || "Request failed");
@@ -1154,6 +1161,13 @@ var App = (function () {
         var choices = data.choices || [];
         var content = choices[0] && choices[0].message ? choices[0].message.content : "";
         live.content = content || "[empty response]";
+        var timings = data.timings || {};
+        if (timings.predicted_per_second != null) {
+          live.tps = Math.round(timings.predicted_per_second * 10) / 10;
+        }
+        if (timings.predicted_n != null) {
+          live.tokens = timings.predicted_n;
+        }
         if (data.tool_used && data.tool_used.tool) live.tool = data.tool_used.tool;
         if (data.max_iterations_reached) {
           live.error = true;
@@ -1231,9 +1245,25 @@ var App = (function () {
       if (!json.success) throw new Error(json.error || "Request failed");
       var choices = (json.data && json.data.choices) || [];
       live.content = (choices[0] && choices[0].message && choices[0].message.content) || "";
+      var timings = json.data && json.data.timings || {};
+      if (timings.predicted_per_second != null) {
+        live.tps = Math.round(timings.predicted_per_second * 10) / 10;
+      }
+      if (timings.predicted_n != null) {
+        live.tokens = timings.predicted_n;
+      }
       updateLiveBubble();
     }
     if (!live.content) live.content = "[empty response]";
+    // If no backend timing was provided, estimate from elapsed time.
+    if (live.tps == null && live.startTime) {
+      var elapsed = (Date.now() - live.startTime) / 1000;
+      var estimatedTokens = Math.max(1, Math.round(live.content.length / 4));
+      if (elapsed > 0) {
+        live.tps = Math.round(estimatedTokens / elapsed * 10) / 10;
+      }
+      live.tokens = estimatedTokens;
+    }
   }
 
   /* ---------------- menu / theme ---------------- */
@@ -1359,4 +1389,5 @@ var App = (function () {
   };
 })();
 
+window.App = App;
 App.init();

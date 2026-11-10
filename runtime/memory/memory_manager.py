@@ -33,12 +33,16 @@ def connect():
 
 def init_schema():
     """Create the memory database/table if missing. Idempotent."""
-    with connect() as db:
+    db = connect()
+    try:
         db.commit()
+    finally:
+        db.close()
 
 
 def remember(memory_type, content, source=None, importance=0.5):
-    with connect() as db:
+    db = connect()
+    try:
         db.execute(
             """
             INSERT INTO memories
@@ -48,6 +52,8 @@ def remember(memory_type, content, source=None, importance=0.5):
             (memory_type, content, source, importance),
         )
         db.commit()
+    finally:
+        db.close()
 
 
 def _words(text):
@@ -77,7 +83,8 @@ def search(query, limit=10):
     if not query_words:
         return []
 
-    with connect() as db:
+    db = connect()
+    try:
         rows = db.execute(
             """
             SELECT id, type, content, source,
@@ -85,6 +92,8 @@ def search(query, limit=10):
             FROM memories
             """
         ).fetchall()
+    finally:
+        db.close()
 
     scored = []
 
@@ -153,8 +162,9 @@ def build_context(query, max_chars=3000):
 
 
 def recent(limit=10):
-    with connect() as db:
-        return db.execute(
+    db = connect()
+    try:
+        rows = db.execute(
             """
             SELECT id, type, content, importance, created_at
             FROM memories
@@ -163,6 +173,9 @@ def recent(limit=10):
             """,
             (limit,),
         ).fetchall()
+    finally:
+        db.close()
+    return rows
 
 
 if __name__ == "__main__":
@@ -200,6 +213,20 @@ def remember_episode(task, tool, result, verified):
             parts.append("GPU: Adreno 650")
 
         parts.append("Backend: Vulkan")
+
+    elif tool == "file_read" and isinstance(result, tuple):
+        content, error = result
+        if error:
+            parts.append("Error: " + error)
+        else:
+            parts.append("Read " + str(len(content)) + " chars")
+
+    elif tool == "list_dir" and isinstance(result, tuple):
+        entries, error = result
+        if error:
+            parts.append("Error: " + error)
+        else:
+            parts.append("Listed " + str(len(entries)) + " entries")
 
     else:
         parts.append(str(result))

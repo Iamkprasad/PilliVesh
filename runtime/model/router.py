@@ -37,6 +37,33 @@ ROUTER_PORT = 8081
 START_TIMEOUT = 30.0
 HTTP_TIMEOUT = 8.0
 
+
+def _cpu_cluster_info():
+    """Detect big.LITTLE clusters via cpufreq; returns (big_cores, total)."""
+    try:
+        cpu_root = Path("/sys/devices/system/cpu")
+        freqs = []
+        for cpu_dir in sorted(cpu_root.glob("cpu[0-9]*")):
+            freq_file = cpu_dir / "cpufreq" / "cpuinfo_max_freq"
+            if freq_file.exists():
+                try:
+                    freqs.append(int(freq_file.read_text().strip()))
+                except Exception:
+                    pass
+        if not freqs:
+            return None, os.cpu_count() or 8
+        # Group by frequency (kHz) to find clusters
+        clusters = {}
+        for f in freqs:
+            clusters[f] = clusters.get(f, 0) + 1
+        # Big cores = highest frequency cluster
+        big_freq = max(clusters.keys())
+        big_cores = clusters[big_freq]
+        total = len(freqs)
+        return big_cores, total
+    except Exception:
+        return None, os.cpu_count() or 8
+
 _lock = threading.Lock()
 
 
@@ -190,14 +217,31 @@ def stop_router():
         return {"stopped": True, "killed": killed}
 
 
-def _spawn(model_path, ctx_size=4096, disable_reasoning=False):
+def _spawn(model_path, ctx_size=4096, disable_reasoning=False, tight_ram=False, small_model=False):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(exist_ok=True)
     # -dev none / --no-op-offload: this Termux Vulkan build segfaults while
     # loading GGUFs; pure-CPU path is stable on this device.
     # disable_reasoning: LFM3's template puts chat output in reasoning_content
     # (empty message.content); --reasoning off restores direct answers.
-    threads = max(2, (os.cpu_count() or 8) - 2)
+    big_cores, total_cores = _cpu_cluster_info()
+    if big_cores and big_cores >= 2:
+        # Prefer big cores on big.LITTLE; fall back to cpu-2 if detection odd
+        threads = max(2, min(big_cores, total_cores))
+    else:
+        threads = max(2, (total_cores or 8) - 2)
+    # Tuning: smaller models often do well with slightly different batch/ubatch on mobile
+    if small_model and not tight_ram:
+        batch_size = 256
+        ubatch_size = 64
+    elif tight_ram:
+        batch_size = 256
+        ubatch_size = 64
+    else:
+        batch_size = 512
+        ubatch_size = 128
+    kv_k = "q4_0" if tight_ram else "q8_0"
+    kv_v = "q4_0" if tight_ram else "q8_0"
     argv = [
         "llama-server",
         "-m", str(model_path),
@@ -209,10 +253,10 @@ def _spawn(model_path, ctx_size=4096, disable_reasoning=False):
         "--threads", str(threads),
         "--threads-batch", str(threads),
         "--parallel", "1",
-        "--batch-size", "512",
-        "--ubatch-size", "128",
-        "--cache-type-k", "q8_0",
-        "--cache-type-v", "q8_0",
+        "--batch-size", str(batch_size),
+        "--ubatch-size", str(ubatch_size),
+        "--cache-type-k", kv_k,
+        "--cache-type-v", kv_v,
         "--flash-attn", "on",
     ]
     if disable_reasoning:
@@ -286,7 +330,7 @@ def load_model(model_id, swap=True):
 
     free_mb = available_ram_mb()
     need = int(entry.get("min_ram_mb") or 0)
-    if free_mb is not None and need and free_mb < need:
+    if free_mb is not None and need and free_mb < need - 150:  # allow small headroom
         raise ValueError(
             f"Insufficient RAM: need {need} MB free, have {free_mb} MB"
         )
@@ -313,12 +357,15 @@ def load_model(model_id, swap=True):
             _kill_pid(int(st["pid"]))
             time.sleep(0.3)
 
-        ctx_cap = 2048 if (free_mb is not None and free_mb < 1800) else 4096
+        tight_ram = bool(free_mb is not None and free_mb < 1800)
+        ctx_cap = 2048 if tight_ram else 4096
         ctx = int(entry.get("context") or 4096)
         if ctx > ctx_cap:
             ctx = ctx_cap
+        small_model = bool(int(entry.get("size_mb") or 0) <= 500)
         pid = _spawn(final, ctx_size=ctx,
-                     disable_reasoning=bool(entry.get("disable_reasoning")))
+                     disable_reasoning=bool(entry.get("disable_reasoning")),
+                     tight_ram=tight_ram, small_model=small_model)
         _write_state({"running": True, "pid": pid, "port": ROUTER_PORT,
                       "model_id": model_id, "started": _now()})
         return {"model_id": model_id, "status": "loaded",

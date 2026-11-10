@@ -43,10 +43,37 @@ def available_ram_mb():
         for line in output.splitlines():
             if line.startswith("Mem:"):
                 fields = line.split()
-                return int(fields[6])
+                # Use available (field 6) if present, else free
+                if len(fields) > 6:
+                    return int(fields[6])
+                if len(fields) > 3:
+                    return int(fields[3])
     except Exception:
         pass
     return None
+
+
+def _cpu_clusters():
+    try:
+        cpu_root = Path("/sys/devices/system/cpu")
+        freqs = []
+        for cpu_dir in sorted(cpu_root.glob("cpu[0-9]*")):
+            freq_file = cpu_dir / "cpufreq" / "cpuinfo_max_freq"
+            if freq_file.exists():
+                try:
+                    freqs.append(int(freq_file.read_text().strip()))
+                except Exception:
+                    pass
+        if not freqs:
+            return None
+        clusters = {}
+        for f in freqs:
+            clusters[f] = clusters.get(f, 0) + 1
+        big_freq = max(clusters.keys())
+        return {"big_cores": clusters[big_freq], "total": len(freqs),
+                "clusters_khz": clusters}
+    except Exception:
+        return None
 
 
 def detect():
@@ -56,6 +83,7 @@ def detect():
 
     ram = available_ram_mb()
     cpu = os.cpu_count()
+    clusters = _cpu_clusters()
 
     vulkan = "Vulkan0:" in devices
     gpu = "Adreno (TM) 650" if "Adreno (TM) 650" in devices else None
@@ -69,7 +97,7 @@ def detect():
     except Exception:
         model_downloaded = False
 
-    return {
+    res = {
         "cpu_cores": cpu,
         "ram_available_mb": ram,
         "llama_version": version,
@@ -81,6 +109,9 @@ def detect():
         "gpu_layer_strategy": "auto",
         "model_downloaded": model_downloaded,
     }
+    if clusters:
+        res["cpu_clusters"] = clusters
+    return res
 
 
 def save_profile():

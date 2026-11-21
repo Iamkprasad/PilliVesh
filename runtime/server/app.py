@@ -28,6 +28,7 @@ from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).resolve().parents[2]
 FRONTEND = ROOT / "frontend"
+IMAGE_WEB = ROOT / "image_web"
 
 from runtime.server import handlers
 
@@ -354,7 +355,61 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(fail(e), 200)
             except Exception as e:
                 return self._send_json(fail(f"Internal error: {e}"), 500)
+        if route.startswith("/api/image/"):
+            sub = route[len("/api/image/"):]
+            if sub == "generate":
+                try:
+                    body = self._read_json_body(4096)
+                except ValueError:
+                    return self._send_json(fail("Bad request"), 400)
+                try:
+                    events = handlers.stream_image_generation(body)
+                except ValueError as e:
+                    return self._send_json(fail(e), 200)
+                except Exception as e:
+                    return self._send_json(fail(f"Internal error: {e}"), 500)
+                return self._stream_image(events)
+            try:
+                body = self._read_json_body(1024)
+            except ValueError:
+                return self._send_json(fail("Bad request"), 400)
+            try:
+                if sub == "load":
+                    return self._send_json(
+                        ok(handlers.load_image_model(body.get("id"))))
+                if sub == "unload":
+                    return self._send_json(
+                        ok(handlers.unload_image_model(body.get("id"))))
+                if sub == "download":
+                    return self._send_json(
+                        ok(handlers.download_image_model(body.get("id"))))
+                if sub == "cancel":
+                    return self._send_json(ok(handlers.cancel_image_generation()))
+            except ValueError as e:
+                return self._send_json(fail(e), 200)
+            except Exception as e:
+                return self._send_json(fail(f"Internal error: {e}"), 500)
+            return self._send_json(fail("Not found"), 404)
         return self._send_json(fail("Not found"), 404)
+
+    def _stream_image(self, events):
+        """NDJSON: {t:progress,...} | {t:done,...} | {t:error,e}."""
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        try:
+            for event in events:
+                chunk = json.dumps(event, ensure_ascii=False).encode("utf-8")
+                self.wfile.write(chunk + b"\n")
+                self.wfile.flush()
+        except Exception:
+            try:
+                self.wfile.write(b'{"t":"error","e":"stream closed"}\n')
+                self.wfile.flush()
+            except Exception:
+                pass
 
     def _stream_chat(self, body):
         """NDJSON stream: lines of {t:d,c:delta} | {t:done} | {t:error,e}."""
@@ -451,12 +506,38 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(ok(handlers.get_model_stats(q("id"))))
             if route == "/api/health":
                 return self._send_json(ok({"status": "ok"}))
+            if route == "/api/image/models":
+                return self._send_json(ok(handlers.get_image_models()))
+            if route == "/api/image/status":
+                return self._send_json(ok(handlers.get_image_status()))
+            if route == "/api/image/download/status":
+                return self._send_json(ok(handlers.get_image_download_status()))
+            if route == "/api/image/search":
+                return self._send_json(ok(handlers.search_hf_models(q("q", ""))))
+            if route.startswith("/api/image/file/"):
+                raw_id = route[len("/api/image/file/"):]
+                image_id = raw_id[:-4] if raw_id.endswith(".png") else raw_id
+                return self._send_file(handlers.get_image_file(image_id))
         except FileNotFoundError as e:
             return self._send_json(fail(e), 200)
         except ValueError as e:
             return self._send_json(fail(e), 200)
         except Exception as e:
             return self._send_json(fail(f"Internal error: {e}"), 500)
+
+        # Image webapp: /image and /image/* (separate from the chat frontend).
+        if route == "/image" or route.startswith("/image/"):
+            rel = parsed.path[len("/image/"):] if route.startswith("/image/") else ""
+            if rel == "":
+                rel = "index.html"
+            target = (IMAGE_WEB / rel).resolve()
+            try:
+                target.relative_to(IMAGE_WEB.resolve())
+            except ValueError:
+                return self._send_json(fail("Not found"), 404)
+            if not target.exists() or not target.is_file():
+                return self._send_json(fail("Not found"), 404)
+            return self._send_file(target)
 
         # Static frontend (no directory listing, no traversal).
         rel = parsed.path.lstrip("/")

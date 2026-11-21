@@ -49,6 +49,10 @@ auto-load of the first installed catalog model).
 
 | Path | Responsibility |
 |---|---|
+| `image_web/` | Separate `/image` webapp (HTML/CSS/JS) for image generation; chat `frontend/` is untouched |
+| `runtime/model/image_catalog.py` | Allow-listed SD1.5 image models, size/RAM/licence/source links |
+| `runtime/model/image_router.py` | Lazy single-model `sd-server` supervisor on `127.0.0.1:8091` |
+| `runtime/model/image_adapter.py` | Only module that knows sd-server's native API field names |
 | `frontend/index.html` | All page markup: home, models, skills, tools, memory, benchmarks, settings, chat |
 | `frontend/css/app.css` | Design tokens, responsive rules, light/dark theme |
 | `frontend/js/theme.js` | Applies saved theme before first paint (loaded in `<head>`) |
@@ -85,6 +89,9 @@ you may be changing dead code.
 
 - **Stdlib only.** No pip packages, no npm, no frameworks, no build step.
   Python code must stay compatible with Python 3.8+ (the README's promise).
+  Native engines (llama-server, sd-server) are optional external binaries
+  installed by shell scripts; they are never committed and are not a Python
+  dependency. The `/image` webapp is plain HTML/CSS/JS with no bundler.
 - Frontend is classic browser JavaScript: global IIFEs, `var`, no modules,
   no transpiling. Match the surrounding style instead of modernizing it.
 - No absolute paths. Derive the repo root at runtime, e.g.
@@ -95,7 +102,10 @@ you may be changing dead code.
 ### Data, secrets, and trust boundaries
 
 - Never commit `results/`, `logs/*.jsonl`, `models/*`, `*.db`, API keys, or
-  downloaded models. They are git-ignored for a reason.
+  downloaded models. They are git-ignored for a reason. Generated images in
+  `results/images/` and the native `bin/sd-server` binary are ignored too.
+- Image downloads use catalog ids only. Hugging Face search is read-only; never
+  accept a browser-supplied download URL or add arbitrary hosts to the catalog.
 - Provider keys live only in `results/providers.json`, mode `0600`. The
   browser receives only `has_key` + a masked `key_hint`. Never return, log,
   or embed a key in page JavaScript.

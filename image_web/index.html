@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FF8A00">
+  <title>PilliVesh — Image Studio</title>
+  <link rel="stylesheet" href="/image/css/app.css">
+  <script src="/js/theme.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="/" aria-label="Back to chat">&#8592; Chat</a>
+    <h1>Image Studio</h1>
+    <span id="engine-pill" class="pill">Engine offline</span>
+  </header>
+
+  <main>
+    <section class="card" id="models-section">
+      <h2>Models</h2>
+      <div id="model-list" class="model-list"><p class="muted">Loading models…</p></div>
+
+      <div class="download-box">
+        <label for="search-input">Find a model on Hugging Face</label>
+        <div class="row">
+          <input id="search-input" type="text" maxlength="64"
+                 placeholder="SD 1.5 GGUF" autocomplete="off">
+          <button id="search-btn" type="button">Search</button>
+        </div>
+        <p class="hint">Search for <strong>SD 1.5 GGUF</strong>, open a repository,
+          pick a <code>.gguf</code> file and copy its link. Only models in the curated
+          catalog can be downloaded in-app; for others, add an entry to
+          <code>runtime/model/image_catalog.py</code>.</p>
+        <div id="search-results" class="results"></div>
+      </div>
+
+      <div class="download-status" id="download-status"></div>
+    </section>
+
+    <section class="card">
+      <h2>Create</h2>
+      <label for="prompt">Prompt</label>
+      <textarea id="prompt" rows="3" placeholder="a red robot in a garden, clean illustration"></textarea>
+
+      <label for="negative">Negative prompt</label>
+      <input id="negative" type="text" placeholder="blurry, lowres, bad anatomy">
+
+      <div class="grid">
+        <div>
+          <label for="size">Size</label>
+          <select id="size">
+            <option value="256">256 × 256 (recommended)</option>
+            <option value="128">128 × 128 (fastest)</option>
+            <option value="384">384 × 384</option>
+            <option value="512">512 × 512 (slow)</option>
+          </select>
+        </div>
+        <div>
+          <label for="steps">Steps</label>
+          <input id="steps" type="number" min="1" max="30" value="10">
+        </div>
+        <div>
+          <label for="seed">Seed</label>
+          <input id="seed" type="number" value="-1">
+        </div>
+      </div>
+
+      <div class="row actions">
+        <button id="generate-btn" class="primary" type="button">Generate</button>
+        <button id="cancel-btn" type="button" disabled>Cancel</button>
+      </div>
+
+      <div id="progress-wrap" class="progress-wrap" hidden>
+        <div class="progress-label"><span id="stage">starting</span><span id="step-label"></span></div>
+        <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+      </div>
+
+      <div id="result" class="result" hidden>
+        <img id="result-img" alt="Generated image">
+        <a id="result-link" href="#" download>Download PNG</a>
+      </div>
+      <p id="message" class="message" role="status"></p>
+    </section>
+
+    <section class="card">
+      <h2>Gallery</h2>
+      <div id="gallery" class="gallery"><p class="muted">No images yet.</p></div>
+    </section>
+  </main>
+
+  <script src="/image/js/api.js"></script>
+  <script src="/image/js/app.js"></script>
+</body>
+</html>

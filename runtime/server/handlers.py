@@ -5,10 +5,17 @@ runtime files. No business logic is duplicated; modules are reused
 where possible. Failures return structured errors to the caller.
 Read endpoints are GET; chat/model ops are localhost POST only.
 """
+import base64
+import hashlib
 import json
+import queue
+import re
 import sqlite3
 import sys
 import threading
+import time
+import urllib.parse
+import urllib.request
 import uuid
 from pathlib import Path
 
@@ -1189,3 +1196,238 @@ def get_diagnostics():
         "model_downloaded": bool(profile.get("model_downloaded")) or len(models) > 0,
         "files": files,
     }
+
+
+# ---------------------------------------------------------------------------
+# Image generation handlers (/image webapp)
+# ---------------------------------------------------------------------------
+
+IMAGE_DOWNLOAD_STATE = RESULTS / "image_download_state.json"
+IMAGE_DIR = RESULTS / "images"
+_image_download_lock = threading.Lock()
+_image_generation_lock = threading.Lock()
+
+
+def _write_image_download_state(data):
+    RESULTS.mkdir(exist_ok=True)
+    IMAGE_DOWNLOAD_STATE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def get_image_models():
+    from runtime.model import image_router
+    return image_router.list_models()
+
+
+def get_image_status():
+    from runtime.model import image_router
+    return image_router.status_summary()
+
+
+def load_image_model(model_id):
+    from runtime.model import image_router
+    return image_router.load_model(model_id)
+
+
+def unload_image_model(model_id=None):
+    from runtime.model import image_router
+    return image_router.unload_model(model_id)
+
+
+def get_image_download_status():
+    data = _load_json(IMAGE_DOWNLOAD_STATE, default=None)
+    return data or {"status": "idle"}
+
+
+def _download_image_worker(entry):
+    from runtime.model import image_catalog
+    target = image_catalog.MODELS_DIR / entry["filename"]
+    part = target.with_suffix(target.suffix + ".part")
+    state = {"id": entry["id"], "name": entry["name"], "status": "downloading",
+             "downloaded_mb": 0, "total_mb": 0, "percent": 0}
+    _write_image_download_state(state)
+    try:
+        image_catalog.MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        req = urllib.request.Request(entry["url"], method="HEAD",
+                                     headers={"User-Agent": "PilliVesh/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            total = int(resp.headers.get("Content-Length") or 0)
+        if total and total > 6 * 1024 * 1024 * 1024:
+            raise ValueError("Model exceeds the 6 GB safety limit")
+        state["total_mb"] = total // (1024 * 1024)
+        req = urllib.request.Request(
+            entry["url"], headers={"User-Agent": "PilliVesh/1.0"})
+        done = 0
+        last_write = 0.0
+        with urllib.request.urlopen(req, timeout=30) as resp, open(
+                str(part), "wb") as out:
+            while True:
+                chunk = resp.read(256 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+                done += len(chunk)
+                now = time.monotonic()
+                if now - last_write > 0.5:
+                    state["downloaded_mb"] = done // (1024 * 1024)
+                    state["percent"] = int(done * 100 / total) if total else 0
+                    _write_image_download_state(state)
+                    last_write = now
+        if total and done != total:
+            raise ValueError("Download size mismatch: %d of %d bytes" % (
+                done, total))
+        expected = entry.get("sha256")
+        if expected:
+            digest = hashlib.sha256()
+            with open(str(part), "rb") as src:
+                for block in iter(lambda: src.read(1024 * 1024), b""):
+                    digest.update(block)
+            if digest.hexdigest() != expected.lower():
+                raise ValueError("Checksum mismatch")
+        part.replace(target)
+        state.update({"status": "completed", "downloaded_mb": done // (1024 * 1024),
+                      "percent": 100, "path": str(target)})
+    except Exception as e:
+        try:
+            if part.exists():
+                part.unlink()
+        except Exception:
+            pass
+        state.update({"status": "error", "error": str(e)})
+    _write_image_download_state(state)
+
+
+def download_image_model(model_id):
+    from runtime.model import image_catalog
+    entry = image_catalog.get_model(model_id)  # allow-list gate
+    target = image_catalog.MODELS_DIR / entry["filename"]
+    if target.is_file():
+        return {"status": "already_installed", "id": model_id}
+    if not image_catalog.is_safe_download_url(entry["url"]):
+        raise ValueError("Refusing unsafe model URL")
+    current = get_image_download_status()
+    if current.get("status") == "downloading":
+        return {"status": "in_progress", "id": current.get("id")}
+    with _image_download_lock:
+        thread = threading.Thread(
+            target=_download_image_worker, args=(entry,), daemon=True)
+        thread.start()
+    return {"status": "started", "id": model_id}
+
+
+def search_hf_models(query):
+    raw = str(query or "").strip()
+    clean = re.sub(r"[^A-Za-z0-9._\- ]", "", raw)[:64].strip()
+    if not clean:
+        raise ValueError("Enter a search term")
+    url = ("https://huggingface.co/api/models?search="
+           + urllib.parse.quote(clean) + "&limit=8&full=false")
+    req = urllib.request.Request(url, headers={"User-Agent": "PilliVesh/1.0"})
+    with urllib.request.urlopen(req, timeout=12) as resp:
+        results = json.loads(resp.read().decode("utf-8", "replace"))
+    out = []
+    for item in results if isinstance(results, list) else []:
+        repo = item.get("id")
+        if not repo:
+            continue
+        files = [s.get("rfilename", "") for s in item.get("siblings", [])
+                 if isinstance(s, dict)]
+        ggufs = [f for f in files if f.lower().endswith(".gguf")]
+        if not ggufs:
+            continue
+        preferred = next((f for f in ggufs if "q8" in f.lower()), None)
+        if preferred is None:
+            preferred = next((f for f in ggufs if "q4_k_m" in f.lower()), None)
+        preferred = preferred or ggufs[0]
+        out.append({
+            "id": repo,
+            "file": preferred,
+            "downloads": item.get("downloads", 0),
+            "pipeline": item.get("pipeline_tag") or "",
+            "source_url": "https://huggingface.co/" + repo,
+        })
+    return out
+
+
+def _image_file_path(image_id):
+    if not re.fullmatch(r"[0-9a-f]{32}", str(image_id or "")):
+        raise ValueError("Invalid image id")
+    return IMAGE_DIR / (str(image_id) + ".png")
+
+
+def get_image_file(image_id):
+    path = _image_file_path(image_id)
+    if not path.is_file():
+        raise FileNotFoundError("Image not found")
+    return path
+
+
+def stream_image_generation(body):
+    """Return an iterator of NDJSON event dicts for POST /api/image/generate."""
+    from runtime.model import image_adapter
+
+    image_adapter.build_request(body)  # validate before starting a thread
+    if not _image_generation_lock.acquire(blocking=False):
+        raise ValueError("Another image generation is already running")
+    events = queue.Queue()
+
+    def worker():
+        try:
+            def on_progress(progress):
+                events.put({
+                    "t": "progress",
+                    "stage": str(progress.get("stage") or ""),
+                    "detail": str(progress.get("detail") or ""),
+                    "completed": progress.get("completed"),
+                    "total": progress.get("total"),
+                    "unit": progress.get("unit"),
+                })
+
+            result = image_adapter.generate(body, on_progress=on_progress)
+            raw = base64.b64decode(result["image_b64"])
+            if not raw.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise ValueError("sd-server returned a non-PNG image")
+            image_id = uuid.uuid4().hex
+            IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+            path = IMAGE_DIR / (image_id + ".png")
+            path.write_bytes(raw)
+            payload = {
+                "prompt": body.get("prompt"),
+                "negative_prompt": body.get("negative_prompt", ""),
+                "steps": body.get("steps"),
+                "width": body.get("width"),
+                "height": body.get("height"),
+                "seed": body.get("seed"),
+            }
+            (IMAGE_DIR / (image_id + ".json")).write_text(
+                json.dumps(payload, indent=2), encoding="utf-8")
+            events.put({
+                "t": "done",
+                "id": image_id,
+                "path": "/api/image/file/" + image_id + ".png",
+                "width": body.get("width"),
+                "height": body.get("height"),
+                "ms": result.get("elapsed_ms", 0),
+            })
+        except Exception as e:
+            events.put({"t": "error", "e": str(e)})
+        finally:
+            events.put(None)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    def iterator():
+        try:
+            while True:
+                event = events.get()
+                if event is None:
+                    break
+                yield event
+        finally:
+            _image_generation_lock.release()
+
+    return iterator()
+
+
+def cancel_image_generation():
+    from runtime.model import image_adapter
+    return image_adapter.cancel()

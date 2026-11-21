@@ -182,6 +182,31 @@ at a time (`--models-max` equivalent). On this Termux build the server runs
 pure-CPU (`-dev none`) because the packaged Vulkan backend segfaults while
 loading GGUFs.
 
+## Image Studio (`/image`)
+
+A separate, from-scratch localhost webapp for on-device image generation. It
+does not change the chat UI or its llama.cpp router.
+
+```bash
+bin/install-image-engine.sh   # once: build stable-diffusion.cpp sd-server (CPU)
+./run-dashboard.sh             # as usual
+# Open http://127.0.0.1:8080/image/
+```
+
+Flow: **Models** → Download a curated SD1.5 GGUF, Load it → **Create** → prompt,
+size, steps, seed → **Generate**. Progress and the final PNG stream over NDJSON;
+results are saved under `results/images/` and shown in the gallery. The Models
+section also has a Hugging Face search box: it shows matching GGUF repos and a
+copyable link, but downloads are restricted to the curated allow-list in
+`runtime/model/image_catalog.py`.
+
+The native engine runs on `127.0.0.1:8091`, is started only on Load and stopped
+on Unload. It is an optional external binary, installed by the script above;
+the Python runtime itself remains stdlib-only. See `docs/image-api.md` and
+`docs/local-dream-analysis.md`. CPU generation is slow on phone hardware —
+start at 256×256 / 10 steps. NPU acceleration is not used (see the analysis
+doc for the Snapdragon 870 / Hexagon V68 limitations).
+
 ## Handy runtime commands
 
 ```bash
